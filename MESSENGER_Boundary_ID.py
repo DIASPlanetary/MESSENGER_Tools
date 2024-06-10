@@ -92,6 +92,15 @@ import ephem
 
 import matplotlib.pyplot as plt
 
+def convert_to_datetime(date_string):
+    
+    ''' converts date_string to datetime object'''
+    import datetime
+    date_obj=datetime.datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
+    
+    return date_obj
+
+
 def read_in_Philpott_list(pf):
     
     ''' Create a dataframe of boundary crossings as identified by the Philpott List
@@ -406,6 +415,13 @@ def read_in_Sun_files(scf):
 def read_in_Sun_csv(Sun_csv):
     
     df_Sun = pd.read_csv(Sun_csv)
+    
+    start = np.array([convert_to_datetime(d) for d in df_Sun.start])
+    end = np.array([convert_to_datetime(d) for d in df_Sun.end])
+    
+    df_Sun['start'] = start
+    
+    df_Sun['end'] = end
     
     return df_Sun
     
