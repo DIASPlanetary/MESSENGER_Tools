@@ -21,7 +21,7 @@ Created on Tue May 28 10:33:16 2024
     
     '''
     
-philpott_file = '/Users/bowersch/Downloads/jgra55678-sup-0002-table_si-s01.csv'
+philpott_file = 'jgra55678-sup-0002-table_si-s01.csv'
 
 
 
@@ -35,8 +35,7 @@ philpott_file = '/Users/bowersch/Downloads/jgra55678-sup-0002-table_si-s01.csv'
 
     Specify location of folder: '''
     
-Sun_crossings_folder = '/Users/bowersch/Desktop/MESSENGER Data/Weijie Crossings/'
-
+Sun_crossings_folder = '/Weijie Crossings'
 
 '''
 
@@ -49,7 +48,7 @@ Specify the location of this .csv file here:
 
 '''
 
-Sun_csv = '/Users/bowersch/Desktop/Python_Code/MESSENGER_Boundary_Work/Sun_Boundaries_with_Eph.csv'
+Sun_file = 'Sun_Boundaries_with_Eph.csv'
 
 
 '''
@@ -172,7 +171,6 @@ def read_in_Philpott_list(pf):
                                'mp_out_1','mp_out_2','bs_out_1','bs_out_2','gap_1','gap_2'])
     
     def rotate_into_msm(x,y,z,time):
-        from trying3 import get_aberration_angle
         
         #Aberration:
             
@@ -549,11 +547,15 @@ def plot_mag_time_series(df,start_date,end_date = 'NA'):
 
     fig, axs = plt.subplots(5, sharex=True)
 
-    #fig.set_size_inches(10,12)
+    fig.set_size_inches(12,8)
     
+    start_date = start_date.strftime("%Y-%m-%d")
     if end_date == 'NA':
-        start_date = start_date.strftime("%Y-%m-%d")
         plt.xlabel(f"Date: {start_date}")
+    else:
+        end_date = end_date.strftime("%Y-%m-%d")
+        plt.xlabel(f"From {start_date} to {end_date}")
+    
 
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
     axs[0].plot(df['Time'],df['mag_x'], linewidth=0.8)
@@ -580,11 +582,14 @@ def mag_time_series(start_date, end_date):
     
     ''' Plots time series of B-field between a user inputed start date
         and end date. Also returns the data for this time period in
-        a !!! dataframe or numpy array!!!
+        a dataframe
 
         Arguments:
         start_date -- string format of start date "YYYY-MM-DD-HH-MM-SS"
         start_date -- string format of end date "YYYY-MM-DD-HH-MM-SS"
+    
+        Data must be stored under structure:    /mess-mag-calibrated/"MM"/file.TAB
+                                    example:    /mess-mag-calibrated/01/MAGMSOSCIAVG15001_01_V08.TAB
     '''
 
     # Extract Year,Month and day from start_date and load in dataframe
@@ -593,21 +598,11 @@ def mag_time_series(start_date, end_date):
     # Trim top and bottom of data frame to only have period of interest
     # plot times series data (as done in MESSENGER/MESSENGER_Boundary_Testing/MESSENGER_Boundary_ID.py)
 
-    start_day = load_mag.get_day_of_year(start_date)
-    start_month = start_date[5:7]
-    start_year = start_date[2:4]
-
-    end_day = load_mag.get_day_of_year(end_date)
-    end_month = end_date[5:7]
-    end_year = end_date[2:4]
-
-
-
     start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d-%H-%M-%S')
     end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d-%H-%M-%S')
 
     #Finding the number of different days the data spans
-    dt = end_date_obj.day - start_date_obj.day 
+    dt = end_date_obj.timetuple().tm_yday - start_date_obj.timetuple().tm_yday 
 
     #If data is all from one day load in that day and remove data from outside time of interest 
     if dt == 0:
@@ -615,7 +610,6 @@ def mag_time_series(start_date, end_date):
         x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
         plot_mag_time_series(df,start_date_obj)
-        #print(df)
 
     #If data spans two days then load in both days and concat into one dataframe, then same procedure as above
     elif dt==1:
@@ -625,11 +619,17 @@ def mag_time_series(start_date, end_date):
         x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
         plot_mag_time_series(df,start_date_obj,end_date_obj)
-        #print(df)
 
+    #If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
-        print("WIP")
-
+        df = load_mag.load_MESSENGER_into_tplot(start_date)
+        for i in range(1,dt+1):
+            date = (start_date_obj+ datetime.timedelta(days=i)).strftime('%Y-%m-%d-%H-%M-%S')
+            df1 = load_mag.load_MESSENGER_into_tplot(date)
+            df = pd.concat([df,df1])
+        x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
+        df = df[df.index.isin(x)]
+        plot_mag_time_series(df,start_date_obj,end_date_obj)
     
     return df
     
