@@ -92,6 +92,10 @@ import ephem
 
 import matplotlib.pyplot as plt
 
+import matplotlib.dates as mdates
+
+import load_messenger_mag as load_mag
+
 def convert_to_datetime(date_string):
     
     ''' converts date_string to datetime object'''
@@ -537,6 +541,96 @@ def plot_boundary_locations(df):
         
     
     
+def plot_mag_time_series(df,start_date,end_date = 'NA'):
+    '''
+    Plot timeseries of B fields in 3-axis with 2015 mag data
+    WIP: to add ability to select start and end time
+    '''
 
+    fig, axs = plt.subplots(5, sharex=True)
+
+    #fig.set_size_inches(10,12)
+    
+    if end_date == 'NA':
+        start_date = start_date.strftime("%Y-%m-%d")
+        plt.xlabel(f"Date: {start_date}")
+
+    axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
+    axs[0].plot(df['Time'],df['mag_x'], linewidth=0.8)
+
+    axs[1].set_ylabel("$B_y$ (nT)", fontsize=12)
+    axs[1].plot(df['Time'],df['mag_y'], linewidth=0.8)
+
+    axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
+    axs[2].plot(df['Time'],df['mag_z'], linewidth=0.8)
+
+    axs[3].set_ylabel("|B| (nT)", fontsize=12)
+    axs[3].plot(df['Time'],df['magamp'], linewidth=0.8)
+
+    axs[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    axs[4].set_ylabel("(nT)", fontsize=12)
+    axs[4].plot(df['Time'],df['mag_x'], linewidth=0.8, label='$B_x$')
+    axs[4].plot(df['Time'],df['mag_y'], linewidth=0.8, label='$B_y$')
+    axs[4].plot(df['Time'],df['mag_z'], linewidth=0.8, label='$B_z$')
+    axs[4].plot(df['Time'],df['magamp'], linewidth=0.8, label='|B|')
+    axs[4].legend(fontsize=5)
+
+
+def mag_time_series(start_date, end_date):
+    
+    ''' Plots time series of B-field between a user inputed start date
+        and end date. Also returns the data for this time period in
+        a !!! dataframe or numpy array!!!
+
+        Arguments:
+        start_date -- string format of start date "YYYY-MM-DD-HH-MM-SS"
+        start_date -- string format of end date "YYYY-MM-DD-HH-MM-SS"
+    '''
+
+    # Extract Year,Month and day from start_date and load in dataframe
+    # Find difference between start and end and load in all dataframes between
+    # Combine into one dataframe [ use df1.append(df2, ignore_index=True) ]
+    # Trim top and bottom of data frame to only have period of interest
+    # plot times series data (as done in MESSENGER/MESSENGER_Boundary_Testing/MESSENGER_Boundary_ID.py)
+
+    start_day = load_mag.get_day_of_year(start_date)
+    start_month = start_date[5:7]
+    start_year = start_date[2:4]
+
+    end_day = load_mag.get_day_of_year(end_date)
+    end_month = end_date[5:7]
+    end_year = end_date[2:4]
+
+
+
+    start_date_obj = datetime.datetime.strptime(start_date, '%Y-%m-%d-%H-%M-%S')
+    end_date_obj = datetime.datetime.strptime(end_date, '%Y-%m-%d-%H-%M-%S')
+
+    #Finding the number of different days the data spans
+    dt = end_date_obj.day - start_date_obj.day 
+
+    #If data is all from one day load in that day and remove data from outside time of interest 
+    if dt == 0:
+        df = load_mag.load_MESSENGER_into_tplot(start_date)
+        x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
+        df = df[df.index.isin(x)]
+        plot_mag_time_series(df,start_date_obj)
+        #print(df)
+
+    #If data spans two days then load in both days and concat into one dataframe, then same procedure as above
+    elif dt==1:
+        df1 = load_mag.load_MESSENGER_into_tplot(start_date)
+        df2 = load_mag.load_MESSENGER_into_tplot(end_date)
+        df = pd.concat([df1,df2], ignore_index=True)
+        x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
+        df = df[df.index.isin(x)]
+        plot_mag_time_series(df,start_date_obj,end_date_obj)
+        #print(df)
+
+    else:
+        print("WIP")
+
+    
+    return df
     
     
