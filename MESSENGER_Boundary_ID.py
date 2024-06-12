@@ -541,8 +541,7 @@ def plot_boundary_locations(df):
     
 def plot_mag_time_series(df,start_date,end_date = 'NA'):
     '''
-    Plot timeseries of B fields in 3-axis with 2015 mag data
-    WIP: to add ability to select start and end time
+    Plot time series of B fields in 3-axis with messenger mag data
     '''
 
     fig, axs = plt.subplots(5, sharex=True)
@@ -556,21 +555,25 @@ def plot_mag_time_series(df,start_date,end_date = 'NA'):
         end_date = end_date.strftime("%Y-%m-%d")
         plt.xlabel(f"From {start_date} to {end_date}")
     
-
+    #Top plot B_x field
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
     axs[0].plot(df['Time'],df['mag_x'], linewidth=0.8)
 
+    #B_y field
     axs[1].set_ylabel("$B_y$ (nT)", fontsize=12)
     axs[1].plot(df['Time'],df['mag_y'], linewidth=0.8)
 
+    #B_z field
     axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
     axs[2].plot(df['Time'],df['mag_z'], linewidth=0.8)
 
+    #Amplitude of B field
     axs[3].set_ylabel("|B| (nT)", fontsize=12)
     axs[3].plot(df['Time'],df['magamp'], linewidth=0.8)
 
+    #Plot of all B fields and total amplitude
     axs[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    axs[4].set_ylabel("(nT)", fontsize=12)
+    axs[4].set_ylabel("All B Fields (nT)", fontsize=12)
     axs[4].plot(df['Time'],df['mag_x'], linewidth=0.8, label='$B_x$')
     axs[4].plot(df['Time'],df['mag_y'], linewidth=0.8, label='$B_y$')
     axs[4].plot(df['Time'],df['mag_z'], linewidth=0.8, label='$B_z$')
@@ -578,7 +581,7 @@ def plot_mag_time_series(df,start_date,end_date = 'NA'):
     axs[4].legend(fontsize=5)
 
 
-def mag_time_series(start_date, end_date):
+def mag_time_series(start_date, end_date, res="01"):
     
     ''' Plots time series of B-field between a user inputed start date
         and end date. Also returns the data for this time period in
@@ -587,7 +590,8 @@ def mag_time_series(start_date, end_date):
         Arguments:
         start_date -- string format of start date "YYYY-MM-DD-HH-MM-SS"
         start_date -- string format of end date "YYYY-MM-DD-HH-MM-SS"
-    
+        res -- time resolution of data. Options: "01", "05", "10", or "60" seconds
+
         Data must be stored under structure:    /mess-mag-calibrated/"MM"/file.TAB
                                     example:    /mess-mag-calibrated/01/MAGMSOSCIAVG15001_01_V08.TAB
     '''
@@ -606,15 +610,15 @@ def mag_time_series(start_date, end_date):
 
     #If data is all from one day load in that day and remove data from outside time of interest 
     if dt == 0:
-        df = load_mag.load_MESSENGER_into_tplot(start_date)
+        df = load_mag.load_MESSENGER_into_tplot(start_date, res)
         x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
         plot_mag_time_series(df,start_date_obj)
 
     #If data spans two days then load in both days and concat into one dataframe, then same procedure as above
     elif dt==1:
-        df1 = load_mag.load_MESSENGER_into_tplot(start_date)
-        df2 = load_mag.load_MESSENGER_into_tplot(end_date)
+        df1 = load_mag.load_MESSENGER_into_tplot(start_date,res)
+        df2 = load_mag.load_MESSENGER_into_tplot(end_date,res)
         df = pd.concat([df1,df2], ignore_index=True)
         x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
@@ -622,10 +626,10 @@ def mag_time_series(start_date, end_date):
 
     #If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
-        df = load_mag.load_MESSENGER_into_tplot(start_date)
+        df = load_mag.load_MESSENGER_into_tplot(start_date,res)
         for i in range(1,dt+1):
             date = (start_date_obj+ datetime.timedelta(days=i)).strftime('%Y-%m-%d-%H-%M-%S')
-            df1 = load_mag.load_MESSENGER_into_tplot(date)
+            df1 = load_mag.load_MESSENGER_into_tplot(date,res)
             df = pd.concat([df,df1])
         x = df.index[(df["Time"] >= start_date_obj) & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]

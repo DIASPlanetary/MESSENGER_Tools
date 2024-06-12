@@ -161,9 +161,9 @@ def load_MESSENGER_into_tplot(date_string, res="01", full=False, FIPS=False):
         ephz = df[:, 7]
 
     # Define magnetic field amplitude
-
     magamp = np.sqrt(mag1[:, 0]**2+mag1[:, 1]**2+mag1[:, 2]**2)
 
+    #Adding all information into a dataframe
     dataframe = pd.DataFrame({"Time": time})
     dataframe["mag_x"] = mag1[:, 0].tolist()
     dataframe["mag_y"] = mag1[:, 1].tolist()
