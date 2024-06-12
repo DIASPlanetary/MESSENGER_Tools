@@ -68,7 +68,7 @@ def load_MESSENGER_into_tplot(date_string, res="01", full=False, FIPS=False):
         doy_s = str(doy)
 
     # file='/Users/bowersch/Desktop/MESSENGER Data/mess-mag-calibrated avg/MAGMSOSCIAVG'+year+str(doy)+'_'+res+'_V08.TAB'
-    
+
     # Data saved on the local machine, change this to ones own machine
     file = 'mess-mag-calibrated/' + \
         month+'/'+'MAGMSOSCIAVG'+year+doy_s+'_'+res+'_V08.TAB'
@@ -163,7 +163,7 @@ def load_MESSENGER_into_tplot(date_string, res="01", full=False, FIPS=False):
     # Define magnetic field amplitude
     magamp = np.sqrt(mag1[:, 0]**2+mag1[:, 1]**2+mag1[:, 2]**2)
 
-    #Adding all information into a dataframe
+    # Adding all information into a dataframe
     dataframe = pd.DataFrame({"Time": time})
     dataframe["mag_x"] = mag1[:, 0].tolist()
     dataframe["mag_y"] = mag1[:, 1].tolist()
