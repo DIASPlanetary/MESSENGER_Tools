@@ -500,11 +500,12 @@ def plot_boundary_locations(df):
 
     ax1.legend()
 
-def plot_vlines(ax,df,time,lb,c):
+def plot_vlines(ax,df,time,lb,c,ls):
     for i in time:
-        ax.axvline(df['AvgDate'][i],linestyle="--",label=lb,c=c)
+        ax.axvline(df['start'][i],linestyle=ls,label=lb,c=c)
+        ax.axvline(df['end'][i],linestyle=ls,label=lb,c=c)
 
-def plot_mag_time_series(df, start_date, end_date='NA',sun=False,philpott=False):
+def plot_mag_time_series(df, start_date, end_date,sun=False, philpott=False):
     '''
     Plot time series of B fields in 3-axis with messenger mag data
     '''
@@ -517,8 +518,10 @@ def plot_mag_time_series(df, start_date, end_date='NA',sun=False,philpott=False)
     start_date_obj = start_date
     end_date_obj = end_date
 
+    dt = end_date_obj.timetuple().tm_yday - start_date_obj.timetuple().tm_yday
+
     start_date = start_date.strftime("%Y-%m-%d")
-    if end_date == 'NA':
+    if dt == 0:
         plt.xlabel(f"Date: {start_date}")
     else:
         end_date = end_date.strftime("%Y-%m-%d")
@@ -558,29 +561,41 @@ def plot_mag_time_series(df, start_date, end_date='NA',sun=False,philpott=False)
     
     #Function to split dataframes into 4 new df's based on crossing type
     def split_BS_MP(df):
-        df_mp_in = df[(df.Type == 'mp_in')]
-        df_mp_out = df[(df.Type == 'mp_out')]
-        df_bs_in = df[(df.Type == 'bs_in')]
-        df_bs_out = df[(df.Type == 'bs_out')]
-        return df_mp_in, df_mp_out, df_bs_in, df_bs_out
+        df_mp = df[((df.Type == 'mp_in') | (df.Type == 'mp_out'))]
+        df_bs = df[((df.Type == 'bs_in') | (df.Type == 'bs_out'))]
+        return df_mp, df_bs
+
+    def relevent_crossing_in(df,lb,c='b',ls='-'):
+        df = AvgDate(df)
+        x = df.index[(df["start"] >= start_date_obj)
+                     & (df["start"] <= end_date_obj)]
+        plot_vlines(axs[4],df,x,lb,c,ls)
+
+    def relevent_crossing_out(df,lb,c='b',ls='-'):
+        df = AvgDate(df)
+        x = df.index[(df["end"] >= start_date_obj)
+                     & (df["end"] <= end_date_obj)]
+        plot_vlines(axs[4],df,x,lb,c,ls)
 
     if sun == True:
         df_sun = read_in_Sun_csv(Sun_file)
-
-        df_sun = AvgDate(df_sun)
-        x = df_sun.index[(df_sun["AvgDate"] >= start_date_obj)
-                     & (df_sun["AvgDate"] <= end_date_obj)]
-        plot_vlines(axs[4],df_sun,x,'All','b')
+        df_sun_mp, df_sun_bs = split_BS_MP(df_sun)
+        relevent_crossing_in(df_sun_mp,'MP in',c='r')
+        relevent_crossing_out(df_sun_mp,'MP out',c='r')
+        relevent_crossing_in(df_sun_bs, 'BS in')
+        relevent_crossing_out(df_sun_bs, 'BS out')
+        
     
     if philpott == True:
         df_p = read_in_Philpott_list(philpott_file)
-        df_p = AvgDate(df_p)
-        x = df_p.index[(df_p["AvgDate"] >= start_date_obj)
-                     & (df_p["AvgDate"] <= end_date_obj)]
-        plot_vlines(axs[4],df_p,x,'All','b')
+        df_p_mp, df_p_bs = split_BS_MP(df_p)
+        relevent_crossing_in(df_p_mp,'MP in',c='r')
+        relevent_crossing_out(df_p_mp,'MP out',c='b')
+        relevent_crossing_in(df_p_bs, 'BS in')
+        relevent_crossing_out(df_p_bs, 'BS out')
 
 
-def mag_time_series(start_date, end_date, res="01",sun=False,philphot=False):
+def mag_time_series(start_date, end_date, res="01",sun=False,philpott=False):
     ''' Plots time series of B-field between a user inputed start date
         and end date. Also returns the data for this time period in
         a dataframe
@@ -609,7 +624,7 @@ def mag_time_series(start_date, end_date, res="01",sun=False,philphot=False):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj,sun,philphot)
+        plot_mag_time_series(df, start_date_obj,end_date_obj,sun=sun,philpott=philpott)
 
     # If data spans two days then load in both days and concat into one dataframe, then same procedure as above
     elif dt == 1:
@@ -619,7 +634,7 @@ def mag_time_series(start_date, end_date, res="01",sun=False,philphot=False):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj,sun,philphot)
+        plot_mag_time_series(df, start_date_obj, end_date_obj,sun,philpott)
 
     # If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
@@ -632,6 +647,6 @@ def mag_time_series(start_date, end_date, res="01",sun=False,philphot=False):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj,sun,philphot)
+        plot_mag_time_series(df, start_date_obj, end_date_obj,sun,philpott)
 
     return df
