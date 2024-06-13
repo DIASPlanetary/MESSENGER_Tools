@@ -500,8 +500,11 @@ def plot_boundary_locations(df):
 
     ax1.legend()
 
+def plot_vlines(ax,df,time,lb,c):
+    for i in time:
+        ax.axvline(df['AvgDate'][i],linestyle="--",label=lb,c=c)
 
-def plot_mag_time_series(df, start_date, end_date='NA'):
+def plot_mag_time_series(df, start_date, end_date='NA',sun=False,philpott=False):
     '''
     Plot time series of B fields in 3-axis with messenger mag data
     '''
@@ -509,6 +512,10 @@ def plot_mag_time_series(df, start_date, end_date='NA'):
     fig, axs = plt.subplots(5, sharex=True)
 
     fig.set_size_inches(12, 8)
+
+    #!!!No end date for one day data!!! 
+    start_date_obj = start_date
+    end_date_obj = end_date
 
     start_date = start_date.strftime("%Y-%m-%d")
     if end_date == 'NA':
@@ -519,31 +526,61 @@ def plot_mag_time_series(df, start_date, end_date='NA'):
 
     # Top plot B_x field
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
-    axs[0].plot(df['Time'], df['mag_x'], linewidth=0.8)
+    axs[0].plot(df['Time'], df['mag_x'], linewidth=0.8,c='blue')
 
     # B_y field
     axs[1].set_ylabel("$B_y$ (nT)", fontsize=12)
-    axs[1].plot(df['Time'], df['mag_y'], linewidth=0.8)
+    axs[1].plot(df['Time'], df['mag_y'], linewidth=0.8,c="#4daf4a")
 
     # B_z field
     axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
-    axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8)
+    axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8,c='#e41a1c')
 
     # Amplitude of B field
     axs[3].set_ylabel("|B| (nT)", fontsize=12)
-    axs[3].plot(df['Time'], df['magamp'], linewidth=0.8)
+    axs[3].plot(df['Time'], df['magamp'], linewidth=0.8,c='black')
 
     # Plot of all B fields and total amplitude
     axs[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
     axs[4].set_ylabel("All B Fields (nT)", fontsize=12)
-    axs[4].plot(df['Time'], df['mag_x'], linewidth=0.8, label='$B_x$')
-    axs[4].plot(df['Time'], df['mag_y'], linewidth=0.8, label='$B_y$')
-    axs[4].plot(df['Time'], df['mag_z'], linewidth=0.8, label='$B_z$')
-    axs[4].plot(df['Time'], df['magamp'], linewidth=0.8, label='|B|')
-    axs[4].legend(fontsize=5)
+    axs[4].plot(df['Time'], df['mag_x'], linewidth=0.8, label='$B_x$',c='blue')
+    axs[4].plot(df['Time'], df['mag_y'], linewidth=0.8, label='$B_y$',c='#4daf4a')
+    axs[4].plot(df['Time'], df['mag_z'], linewidth=0.8, label='$B_z$',c='#e41a1c')
+    axs[4].plot(df['Time'], df['magamp'], linewidth=0.8, label='|B|',c='black')
+    axs[4].legend(fontsize=8)
 
 
-def mag_time_series(start_date, end_date, res="01"):
+#Add function to plot vlines of previously identified boundaries
+    def AvgDate(df):
+        avg_date = (df[['start', 'end']].mean(axis=1))
+        df = df.assign(AvgDate=avg_date)
+        return df
+    
+    #Function to split dataframes into 4 new df's based on crossing type
+    def split_BS_MP(df):
+        df_mp_in = df[(df.Type == 'mp_in')]
+        df_mp_out = df[(df.Type == 'mp_out')]
+        df_bs_in = df[(df.Type == 'bs_in')]
+        df_bs_out = df[(df.Type == 'bs_out')]
+        return df_mp_in, df_mp_out, df_bs_in, df_bs_out
+
+    if sun == True:
+        df_sun = read_in_Sun_csv(Sun_file)
+
+        df_sun = AvgDate(df_sun)
+        x = df_sun.index[(df_sun["AvgDate"] >= start_date_obj)
+                     & (df_sun["AvgDate"] <= end_date_obj)]
+        plot_vlines(axs[4],df_sun,x,'All','b')
+    
+    if philpott == True:
+        df_p = read_in_Philpott_list(philpott_file)
+        df_p = AvgDate(df_p)
+        x = df_p.index[(df_p["AvgDate"] >= start_date_obj)
+                     & (df_p["AvgDate"] <= end_date_obj)]
+        plot_vlines(axs[4],df_p,x,'All','b')
+
+
+def mag_time_series(start_date, end_date, res="01",sun=False,philphot=False):
     ''' Plots time series of B-field between a user inputed start date
         and end date. Also returns the data for this time period in
         a dataframe
@@ -557,11 +594,7 @@ def mag_time_series(start_date, end_date, res="01"):
                                     example:    /mess-mag-calibrated/01/MAGMSOSCIAVG15001_01_V08.TAB
     '''
 
-    # Extract Year,Month and day from start_date and load in dataframe
-    # Find difference between start and end and load in all dataframes between
-    # Combine into one dataframe [ use df1.append(df2, ignore_index=True) ]
-    # Trim top and bottom of data frame to only have period of interest
-    # plot times series data (as done in MESSENGER/MESSENGER_Boundary_Testing/MESSENGER_Boundary_ID.py)
+
 
     start_date_obj = datetime.datetime.strptime(
         start_date, '%Y-%m-%d-%H-%M-%S')
@@ -576,7 +609,7 @@ def mag_time_series(start_date, end_date, res="01"):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj)
+        plot_mag_time_series(df, start_date_obj,sun,philphot)
 
     # If data spans two days then load in both days and concat into one dataframe, then same procedure as above
     elif dt == 1:
@@ -586,7 +619,7 @@ def mag_time_series(start_date, end_date, res="01"):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj)
+        plot_mag_time_series(df, start_date_obj, end_date_obj,sun,philphot)
 
     # If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
@@ -599,6 +632,6 @@ def mag_time_series(start_date, end_date, res="01"):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj)
+        plot_mag_time_series(df, start_date_obj, end_date_obj,sun,philphot)
 
     return df
