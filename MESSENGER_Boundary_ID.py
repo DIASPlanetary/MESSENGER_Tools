@@ -506,12 +506,12 @@ def plot_boundary_locations(df):
 def plot_vlines(ax, df, time, lb, c, ls):
     for i in time:
         ax.axvline(df['start'][i], linestyle=ls, label=lb, c=c)
-        ymin,ymax =  ax.get_ylim()
-        ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
+        ymin, ymax = ax.get_ylim()
+        ax.text(df['start'][i], ymax, lb, va='top', rotation=90,
                 fontsize=9, horizontalalignment='right')
         ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
-        ax.text(df['end'][i], ymax, lb, va='top',rotation=90,
-                 fontsize=9,horizontalalignment='left')
+        ax.text(df['end'][i], ymax, lb, va='top', rotation=90,
+                fontsize=9, horizontalalignment='left')
 
 
 def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
@@ -583,7 +583,8 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
         df = AvgDate(df)
         x = df.index[(df["start"] >= start_date_obj)
                      & (df["start"] <= end_date_obj)]
-        plot_vlines(axs[4], df, x, lb, c, ls)
+        for i in range(5):
+            plot_vlines(axs[i], df, x, lb, c, ls)
 
     if sun == True:
         df_sun = read_in_Sun_csv(Sun_file)
