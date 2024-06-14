@@ -5,6 +5,18 @@ Created on Tue May 28 10:33:16 2024
 
 @author: bowersch
 """
+
+# Load in packages
+import pandas as pd
+import numpy as np
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import ephem
+import datetime
+
+import load_messenger_mag as load_mag
+
 ''' Code to load in MESSENGER boundaries identified by Philpott and Sun.
 
  Link to download Philpott boundary list:  
@@ -20,14 +32,6 @@ Created on Tue May 28 10:33:16 2024
  Specify location on you machine of this file here:
     
     '''
-import pandas as pd
-import numpy as np
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
-import ephem
-import datetime
-
-import load_messenger_mag as load_mag
 
 philpott_file = 'jgra55678-sup-0002-table_si-s01.csv'
 
@@ -85,8 +89,6 @@ Sun_file = 'Sun_Boundaries_with_Eph.csv'
         plot_boundary_locations(df_Sun)     
        
 '''
-
-# Load in packages
 
 
 def convert_to_datetime(date_string):
@@ -501,49 +503,160 @@ def plot_boundary_locations(df):
     ax1.legend()
 
 
-def plot_mag_time_series(df, start_date, end_date='NA'):
+def plot_vlines(ax, df, time, lb, c, ls):
+    for i in time:
+        ax.axvline(df['start'][i], linestyle=ls, label=lb, c=c)
+        ymin,ymax =  ax.get_ylim()
+        ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
+                fontsize=9, horizontalalignment='right')
+        ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
+        ax.text(df['end'][i], ymax, lb, va='top',rotation=90,
+                 fontsize=9,horizontalalignment='left')
+
+
+def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     '''
     Plot time series of B fields in 3-axis with messenger mag data
     '''
 
-    fig, axs = plt.subplots(5, sharex=True)
+    # Setting up grid of plots
+    heights = [1, 1, 1, 1, 1, 3]
+    widths = [3, 3, 3]
+    fig = plt.figure(layout='constrained')
+    gs = gridspec.GridSpec(
+        6, 3, figure=fig, width_ratios=widths, height_ratios=heights)
+    fig.set_size_inches(14, 10)
 
-    fig.set_size_inches(12, 8)
+    # List of axs names
+    axs = ['ax0', 'ax1', 'ax2', 'ax3', 'ax4', 'ax5', 'ax6', 'ax7']
+
+    # Setting the shape of the plots
+    for i in range(5):
+        if i == 0:
+            axs[i] = fig.add_subplot(gs[i, :])
+        else:
+            axs[i] = fig.add_subplot(gs[i, :], sharex=axs[0])
+
+    for i in range(3):
+        axs[i+5] = fig.add_subplot(gs[5, i])
+
+    start_date_obj = start_date
+    end_date_obj = end_date
+
+    dt = end_date_obj.timetuple().tm_yday - start_date_obj.timetuple().tm_yday
 
     start_date = start_date.strftime("%Y-%m-%d")
-    if end_date == 'NA':
-        plt.xlabel(f"Date: {start_date}")
+    if dt == 0:
+        axs[4].set_xlabel(f"Date: {start_date}")
     else:
         end_date = end_date.strftime("%Y-%m-%d")
-        plt.xlabel(f"From {start_date} to {end_date}")
+        axs[4].set_xlabel(f"From {start_date} to {end_date}")
 
     # Top plot B_x field
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
-    axs[0].plot(df['Time'], df['mag_x'], linewidth=0.8)
+    axs[0].plot(df['Time'], df['mag_x'], linewidth=0.8, c='blue')
 
     # B_y field
     axs[1].set_ylabel("$B_y$ (nT)", fontsize=12)
-    axs[1].plot(df['Time'], df['mag_y'], linewidth=0.8)
+    axs[1].plot(df['Time'], df['mag_y'], linewidth=0.8, c="#4daf4a")
 
     # B_z field
     axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
-    axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8)
+    axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8, c='#e41a1c')
 
     # Amplitude of B field
     axs[3].set_ylabel("|B| (nT)", fontsize=12)
-    axs[3].plot(df['Time'], df['magamp'], linewidth=0.8)
+    axs[3].plot(df['Time'], df['magamp'], linewidth=0.8, c='black')
 
     # Plot of all B fields and total amplitude
     axs[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    axs[4].set_ylabel("All B Fields (nT)", fontsize=12)
-    axs[4].plot(df['Time'], df['mag_x'], linewidth=0.8, label='$B_x$')
-    axs[4].plot(df['Time'], df['mag_y'], linewidth=0.8, label='$B_y$')
-    axs[4].plot(df['Time'], df['mag_z'], linewidth=0.8, label='$B_z$')
-    axs[4].plot(df['Time'], df['magamp'], linewidth=0.8, label='|B|')
-    axs[4].legend(fontsize=5)
+    axs[4].set_ylabel("All B Fields (nT)", fontsize=10)
+    axs[4].plot(df['Time'], df['mag_x'],
+                linewidth=0.8, label='$B_x$', c='blue')
+    axs[4].plot(df['Time'], df['mag_y'], linewidth=0.8,
+                label='$B_y$', c='#4daf4a')
+    axs[4].plot(df['Time'], df['mag_z'], linewidth=0.8,
+                label='$B_z$', c='#e41a1c')
+    axs[4].plot(df['Time'], df['magamp'],
+                linewidth=0.8, label='|B|', c='black')
+    axs[4].legend(fontsize=8)
+
+    # Mercury radius km
+    M_R = 2440
+    # Position data
+    ephx = df['eph_x'].values/M_R
+    ephy = df['eph_y'].values/M_R
+    ephz = df['eph_z'].values/M_R
+
+    def plot_merc(ax, hemi=False,z='no'):
+        # Plot mercury
+        theta = np.linspace(0, 2*np.pi, 1000)
+        x = np.cos(theta)
+        y = np.sin(theta)-0.2
+        if z == 'x':
+            x=x-0.19
+            axs[ax].plot(x, y, c='gray')
+        elif z == 'y':
+            y=y-0.19
+            axs[ax].plot(x, y, c='gray')
+        else:
+            axs[ax].plot(x, y, c='gray')
+        axs[ax].set_ylim(-6, 6)
+        axs[ax].set_xlim(-6, 6)
+        if hemi == True:
+            # Color the right hemisphere black
+            axs[ax].fill_between(
+                x, y, where=x < 0, color='black', interpolate=True)
+        # Set equal aspect so Mercury is circular
+        axs[ax].set_aspect('equal', adjustable='box')
+
+    axs[5].plot(ephx, ephz)
+    plot_merc(5, True,z='y')
+    axs[5].set_ylabel("$Z_{MSM\'}$ ($R_M$)", fontsize=15)
+    axs[5].set_xlabel("$X_{MSM\'}$ ($R_M$)", fontsize=15)
+
+    axs[6].plot(ephx, ephy)
+    plot_merc(6, True)
+    axs[6].set_ylabel("$Y_{MSM\'}$ ($R_M$)", fontsize=15)
+    axs[6].set_xlabel("$X_{MSM\'}$ ($R_M$)", fontsize=15)
+
+    axs[7].plot(ephy, ephz)
+    plot_merc(7, False,z='x')
+    axs[7].set_ylabel("$Z_{MSM\'}$ ($R_M$)", fontsize=15)
+    axs[7].set_xlabel("$Y_{MSM\'}$ ($R_M$)", fontsize=15)
+
+    def AvgDate(df):
+        avg_date = (df[['start', 'end']].mean(axis=1))
+        df = df.assign(AvgDate=avg_date)
+        return df
+
+    # Function to split dataframes into 4 new df's based on crossing type
+    def split_BS_MP(df):
+        df_mp = df[((df.Type == 'mp_in') | (df.Type == 'mp_out'))]
+        df_bs = df[((df.Type == 'bs_in') | (df.Type == 'bs_out'))]
+        return df_mp, df_bs
+
+    def relevent_crossing_in(df, lb, c='b', ls='--'):
+        df = AvgDate(df)
+        x = df.index[(df["start"] >= start_date_obj)
+                     & (df["start"] <= end_date_obj)]
+        for i in range(5):
+            plot_vlines(axs[i], df, x, lb, c, ls)
+
+    if sun == True:
+        df_sun = read_in_Sun_csv(Sun_file)
+        df_sun_mp, df_sun_bs = split_BS_MP(df_sun)
+        relevent_crossing_in(df_sun_mp, 'MP', c='purple')
+        relevent_crossing_in(df_sun_bs, 'BS', c='orange')
+
+    if philpott == True:
+        df_p = read_in_Philpott_list(philpott_file)
+        df_p_mp, df_p_bs = split_BS_MP(df_p)
+        relevent_crossing_in(df_p_mp, 'MP', c='pink')
+        relevent_crossing_in(df_p_bs, 'BS', c='mediumturquoise')
 
 
-def mag_time_series(start_date, end_date, res="01"):
+def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
     ''' Plots time series of B-field between a user inputed start date
         and end date. Also returns the data for this time period in
         a dataframe
@@ -552,16 +665,12 @@ def mag_time_series(start_date, end_date, res="01"):
         start_date -- string format of start date "YYYY-MM-DD-HH-MM-SS"
         start_date -- string format of end date "YYYY-MM-DD-HH-MM-SS"
         res -- time resolution of data. Options: "01", "05", "10", or "60" seconds
+        sun -- Plot sun boundary crossings (booleen)
+        philpott -- Plot philpott boundary crossings (booleen)
 
         Data must be stored under structure:    /mess-mag-calibrated/"MM"/file.TAB
                                     example:    /mess-mag-calibrated/01/MAGMSOSCIAVG15001_01_V08.TAB
     '''
-
-    # Extract Year,Month and day from start_date and load in dataframe
-    # Find difference between start and end and load in all dataframes between
-    # Combine into one dataframe [ use df1.append(df2, ignore_index=True) ]
-    # Trim top and bottom of data frame to only have period of interest
-    # plot times series data (as done in MESSENGER/MESSENGER_Boundary_Testing/MESSENGER_Boundary_ID.py)
 
     start_date_obj = datetime.datetime.strptime(
         start_date, '%Y-%m-%d-%H-%M-%S')
@@ -576,7 +685,8 @@ def mag_time_series(start_date, end_date, res="01"):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj)
+        plot_mag_time_series(df, start_date_obj,
+                             end_date_obj, sun=sun, philpott=philpott)
 
     # If data spans two days then load in both days and concat into one dataframe, then same procedure as above
     elif dt == 1:
@@ -586,7 +696,7 @@ def mag_time_series(start_date, end_date, res="01"):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj)
+        plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
 
     # If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
@@ -599,6 +709,7 @@ def mag_time_series(start_date, end_date, res="01"):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj)
+        plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
 
+    plt.show()
     return df
