@@ -506,10 +506,12 @@ def plot_boundary_locations(df):
 def plot_vlines(ax, df, time, lb, c, ls):
     for i in time:
         ax.axvline(df['start'][i], linestyle=ls, label=lb, c=c)
-        ax.text(df['start'][i], 250, lb, rotation=90,
+        ymin,ymax =  ax.get_ylim()
+        ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
                 fontsize=9, horizontalalignment='right')
         ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
-        ax.text(df['end'][i], -400, lb, rotation=270, fontsize=9)
+        ax.text(df['end'][i], ymax, lb, va='top',rotation=90,
+                 fontsize=9,horizontalalignment='left')
 
 
 def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
