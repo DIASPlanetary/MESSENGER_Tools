@@ -586,13 +586,13 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     if sun == True:
         df_sun = read_in_Sun_csv(Sun_file)
         df_sun_mp, df_sun_bs = split_BS_MP(df_sun)
-        relevent_crossing_in(df_sun_mp, 'MP', c='r')
-        relevent_crossing_in(df_sun_bs, 'BS', c='b')
+        relevent_crossing_in(df_sun_mp, 'MP', c='purple')
+        relevent_crossing_in(df_sun_bs, 'BS', c='orange')
 
     if philpott == True:
         df_p = read_in_Philpott_list(philpott_file)
         df_p_mp, df_p_bs = split_BS_MP(df_p)
-        relevent_crossing_in(df_p_mp, 'MP', c='purple')
+        relevent_crossing_in(df_p_mp, 'MP', c='pink')
         relevent_crossing_in(df_p_bs, 'BS', c='mediumturquoise')
 
 
