@@ -506,7 +506,7 @@ def plot_boundary_locations(df):
 def plot_vlines(ax, df, time, lb, c, ls):
     for i in time:
         ax.axvline(df['start'][i], linestyle=ls, label=lb, c=c)
-        ymin,ymax =  ax.get_ylim()
+        ymin, ymax =  ax.get_ylim()
         ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
                 fontsize=9, horizontalalignment='right')
         ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
@@ -630,7 +630,7 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
         df = df.assign(AvgDate=avg_date)
         return df
 
-    # Function to split dataframes into 4 new df's based on crossing type
+    # Function to split dataframes into 2 new df's based on crossing type
     def split_BS_MP(df):
         df_mp = df[((df.Type == 'mp_in') | (df.Type == 'mp_out'))]
         df_bs = df[((df.Type == 'bs_in') | (df.Type == 'bs_out'))]
