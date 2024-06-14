@@ -6,10 +6,12 @@ Created on Tue May 28 10:33:16 2024
 @author: bowersch
 """
 
+# Load in packages
 import pandas as pd
 import numpy as np
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 import ephem
 import datetime
 
@@ -87,9 +89,6 @@ Sun_file = 'Sun_Boundaries_with_Eph.csv'
         plot_boundary_locations(df_Sun)     
        
 '''
-
-# Load in packages
-
 
 def convert_to_datetime(date_string):
     ''' converts date_string to datetime object'''
@@ -511,15 +510,30 @@ def plot_vlines(ax, df, time, lb, c, ls):
         ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
         ax.text(df['end'][i], -400, lb, rotation=270, fontsize=9)
 
-
 def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     '''
     Plot time series of B fields in 3-axis with messenger mag data
     '''
 
-    fig, axs = plt.subplots(5, sharex=True)
+    #Setting up grid of plots
+    heights = [1,1,1,1,1,3]
+    widths = [3,3,3]
+    fig = plt.figure(layout='constrained')
+    gs = gridspec.GridSpec(6, 3, figure=fig,width_ratios=widths,height_ratios=heights)
+    fig.set_size_inches(14, 10)
 
-    fig.set_size_inches(12, 8)
+    #List of axs names
+    axs = ['ax0','ax1','ax2','ax3','ax4','ax5','ax6','ax7']
+
+    #Setting the shape of the plots
+    for i in range(5):
+        if i == 0:
+            axs[i] = fig.add_subplot(gs[i, :])
+        else:
+            axs[i] = fig.add_subplot(gs[i, :],sharex=axs[0])
+
+    for i in range(3):
+        axs[i+5] = fig.add_subplot(gs[5,i])
 
     start_date_obj = start_date
     end_date_obj = end_date
@@ -528,10 +542,10 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
 
     start_date = start_date.strftime("%Y-%m-%d")
     if dt == 0:
-        plt.xlabel(f"Date: {start_date}")
+        axs[4].set_xlabel(f"Date: {start_date}")
     else:
         end_date = end_date.strftime("%Y-%m-%d")
-        plt.xlabel(f"From {start_date} to {end_date}")
+        axs[4].set_xlabel(f"From {start_date} to {end_date}")
 
     # Top plot B_x field
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
@@ -551,7 +565,7 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
 
     # Plot of all B fields and total amplitude
     axs[4].xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-    axs[4].set_ylabel("All B Fields (nT)", fontsize=12)
+    axs[4].set_ylabel("All B Fields (nT)", fontsize=10)
     axs[4].plot(df['Time'], df['mag_x'],
                 linewidth=0.8, label='$B_x$', c='blue')
     axs[4].plot(df['Time'], df['mag_y'], linewidth=0.8,
@@ -562,8 +576,41 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
                 linewidth=0.8, label='|B|', c='black')
     axs[4].legend(fontsize=8)
 
-
-# Add function to plot vlines of previously identified boundaries
+    #Mercury radius km
+    M_R = 2440
+    #Position data
+    ephx = df['eph_x'].values/M_R
+    ephy = df['eph_y'].values/M_R
+    ephz = df['eph_z'].values/M_R
+    
+    def plot_merc(ax,hemi=False):
+        #Plot mercury
+        theta = np.linspace(0, 2*np.pi, 1000)
+        x = np.cos(theta)
+        y = np.sin(theta)-0.2
+        axs[ax].plot(x,y, c='gray')
+        axs[ax].set_ylim(-6,6)
+        axs[ax].set_xlim(-6,6)
+        if hemi == True:
+            # Color the right hemisphere black
+            axs[ax].fill_between(x, y, where=x < 0, color='black', interpolate=True)
+        # Set equal aspect so Mercury is circular
+        axs[ax].set_aspect('equal', adjustable='box')
+    
+    axs[5].plot(ephx,ephz)    
+    plot_merc(5,True)
+    axs[5].set_ylabel("$Z_{MSM\'}$ ($R_M$)", fontsize=15)
+    axs[5].set_xlabel("$X_{MSM\'}$ ($R_M$)", fontsize=15)
+    
+    axs[6].plot(ephx,ephy)
+    plot_merc(6,True)
+    axs[6].set_ylabel("$Y_{MSM\'}$ ($R_M$)", fontsize=15)
+    axs[6].set_xlabel("$X_{MSM\'}$ ($R_M$)", fontsize=15)
+    
+    axs[7].plot(ephy,ephz)
+    plot_merc(7,False)
+    axs[7].set_ylabel("$Z_{MSM\'}$ ($R_M$)", fontsize=15)
+    axs[7].set_xlabel("$Y_{MSM\'}$ ($R_M$)", fontsize=15)
 
 
     def AvgDate(df):
@@ -652,3 +699,5 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
         plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
 
     return df
+
+
