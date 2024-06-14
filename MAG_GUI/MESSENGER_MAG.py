@@ -416,7 +416,7 @@ def MAG_GUI(time_ranges=None, mode='01', time_list=None):
         if time_range_index > 0:
             time_range_index -= 1
             root.destroy()
-            MAG_GUI(time_ranges)
+            MAG_GUI(time_ranges,mode)
 
     # Define the Next button function
     def next_plot():
@@ -424,7 +424,7 @@ def MAG_GUI(time_ranges=None, mode='01', time_list=None):
         if time_range_index < len(time_ranges) - 1:
             time_range_index += 1
             root.destroy()
-            MAG_GUI(time_ranges)
+            MAG_GUI(time_ranges,mode)
 
     next_button = ttk.Button(button_frame, text="Next", command=next_plot)
     next_button.grid(row=0, column=4, padx=10, pady=10)
