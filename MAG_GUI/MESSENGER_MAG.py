@@ -150,13 +150,13 @@ def Read_Mag_npydata(Time_Range, mode='01'):
             print("npy.File does not exist,and will attempt to convert TAB. data to npy. data.")
             if mode == '0.05':
                 tabfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Science_MAG/TAB/'  # 0.05s分辨率数据文件夹
-                if not os.path.isdir(npyfilepath):
-                    os.makedirs(npyfilepath)
+                if not os.path.isdir(tabfilepath):
+                    os.makedirs(tabfilepath)
                 tabfilename = 'MAGMSOSCI' + Time_Range[0][2:4] + str(i).zfill(3) + '_V08.TAB'
             else:
                 tabfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Reduced_MAG/TAB/'  # 01、05、10、60s分辨率数据文件夹
                 if not os.path.isdir(tabfilepath):
-                    os.makedirs(npyfilepath)
+                    os.makedirs(tabfilepath)
                 tabfilename = 'MAGMSOSCIAVG' + Time_Range[0][2:4] + str(i).zfill(3) + '_' + mode + '_V08.TAB'
             tabfull_path = os.path.join(tabfilepath, tabfilename)
             if os.path.exists(tabfull_path):
