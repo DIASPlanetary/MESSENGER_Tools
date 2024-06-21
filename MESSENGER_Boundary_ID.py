@@ -652,8 +652,8 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     if philpott == True:
         df_p = read_in_Philpott_list(philpott_file)
         df_p_mp, df_p_bs = split_BS_MP(df_p)
-        relevent_crossing_in(df_p_mp, 'MP', c='pink')
-        relevent_crossing_in(df_p_bs, 'BS', c='mediumturquoise')
+        relevent_crossing_in(df_p_mp, 'MP', c='pink',ls='dotted')
+        relevent_crossing_in(df_p_bs, 'BS', c='mediumturquoise',ls='--')
 
 
 def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):

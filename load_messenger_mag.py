@@ -70,7 +70,7 @@ def load_MESSENGER_into_tplot(date_string, res="01", full=False, FIPS=False):
     # file='/Users/bowersch/Desktop/MESSENGER Data/mess-mag-calibrated avg/MAGMSOSCIAVG'+year+str(doy)+'_'+res+'_V08.TAB'
 
     # Data saved on the local machine, change this to ones own machine
-    file = 'mess-mag-calibrated/' + \
+    file = 'mess-mag-calibrated/' + year+'/' + \
         month+'/'+'MAGMSOSCIAVG'+year+doy_s+'_'+res+'_V08.TAB'
     if full == True:
         file = 'mess-mag-calibrated/MAGMSOSCI' + \
