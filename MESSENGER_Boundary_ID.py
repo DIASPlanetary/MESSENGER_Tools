@@ -93,7 +93,6 @@ Sun_file = 'Sun_Boundaries_with_Eph.csv'
 
 def convert_to_datetime(date_string):
     ''' converts date_string to datetime object'''
-    import datetime
     date_obj = datetime.datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
 
     return date_obj
@@ -169,8 +168,6 @@ def read_in_Philpott_list(pf):
         # Aberration:
 
         def get_aberration_angle(date):
-
-            import numpy as np
 
             def get_mercury_distance_to_sun(date):
                 # create a PyEphem observer for the Sun
@@ -318,7 +315,6 @@ def read_in_Sun_files(scf):
                     x_in[i, 4] = 59
 
             def convert_to_datetime(date_string):
-                import datetime
                 date_obj = datetime.datetime.strptime(
                     date_string, "%Y-%m-%d %H:%M:%S")
 
@@ -357,8 +353,6 @@ def read_in_Sun_files(scf):
     bs_out = convert_Sun_txt_to_date(file_bs_out)
 
     def generate_crossing_dataframe(cross, typ, eph=False):
-        import numpy as np
-        import pandas as pd
 
         cross_start = cross[0, :]
 
@@ -503,15 +497,22 @@ def plot_boundary_locations(df):
     ax1.legend()
 
 
-def plot_vlines(ax, df, time, lb, c, ls):
+def plot_vlines(ax, df, time, lb, c, ls,top=True):
     for i in time:
         ax.axvline(df['start'][i], linestyle=ls, label=lb, c=c)
         ymin, ymax =  ax.get_ylim()
-        ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
-                fontsize=9, horizontalalignment='right')
-        ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
-        ax.text(df['end'][i], ymax, lb, va='top',rotation=90,
-                 fontsize=9,horizontalalignment='left')
+        if top ==True:
+            ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
+                    fontsize=9, horizontalalignment='right')
+            ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
+            ax.text(df['end'][i], ymax, lb, va='top',rotation=90,
+                    fontsize=9,horizontalalignment='left')
+        else:
+            ax.text(df['start'][i], ymin, lb, va='bottom',rotation=90,
+                    fontsize=9, horizontalalignment='right')
+            ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
+            ax.text(df['end'][i], ymin, lb, va='bottom',rotation=90,
+                    fontsize=9,horizontalalignment='left')
 
 
 def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
@@ -612,16 +613,34 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
 
     axs[5].plot(ephx, ephz)
     plot_merc(5, True,z='y')
+    axs[5].arrow(ephx[0], ephz[0],ephx[2]-ephx[0],ephz[2]-ephz[0],
+                  shape='full', lw=1, length_includes_head=True, 
+                  head_width=.2,color='C0')
+    axs[5].arrow(ephx[-1], ephz[-1],ephx[-1]-ephx[-2],ephz[-1]-ephz[-2],
+                  shape='full', lw=1, length_includes_head=True, 
+                  head_width=.2,color='C0')
     axs[5].set_ylabel("$Z_{MSM\'}$ ($R_M$)", fontsize=15)
     axs[5].set_xlabel("$X_{MSM\'}$ ($R_M$)", fontsize=15)
 
     axs[6].plot(ephx, ephy)
     plot_merc(6, True)
+    axs[6].arrow(ephx[0], ephy[0],ephx[2]-ephx[0],ephy[2]-ephy[0],
+                  shape='full', lw=1, length_includes_head=True, 
+                  head_width=.2,color='C0')
+    axs[6].arrow(ephx[-1], ephy[-1],ephx[-1]-ephx[-2],ephy[-1]-ephy[-2],
+                  shape='full', lw=1, length_includes_head=True, 
+                  head_width=.2,color='C0')
     axs[6].set_ylabel("$Y_{MSM\'}$ ($R_M$)", fontsize=15)
     axs[6].set_xlabel("$X_{MSM\'}$ ($R_M$)", fontsize=15)
 
     axs[7].plot(ephy, ephz)
     plot_merc(7, False,z='x')
+    axs[7].arrow(ephy[0], ephz[0],ephy[2]-ephy[0],ephz[2]-ephz[0],
+                  shape='full', lw=1, length_includes_head=True, 
+                  head_width=.2,color='C0')
+    axs[7].arrow(ephy[-1], ephz[-1],ephy[-1]-ephy[-2],ephz[-1]-ephz[-2],
+                  shape='full', lw=1, length_includes_head=True, 
+                  head_width=.2,color='C0')
     axs[7].set_ylabel("$Z_{MSM\'}$ ($R_M$)", fontsize=15)
     axs[7].set_xlabel("$Y_{MSM\'}$ ($R_M$)", fontsize=15)
 
@@ -636,24 +655,24 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
         df_bs = df[((df.Type == 'bs_in') | (df.Type == 'bs_out'))]
         return df_mp, df_bs
 
-    def relevent_crossing_in(df, lb, c='b', ls='--'):
+    def relevent_crossing_in(df, lb, c='b', ls='--',top=True):
         df = AvgDate(df)
         x = df.index[(df["start"] >= start_date_obj)
                      & (df["start"] <= end_date_obj)]
         for i in range(5):
-            plot_vlines(axs[i], df, x, lb, c, ls)
+            plot_vlines(axs[i], df, x, lb, c, ls,top)
 
     if sun == True:
         df_sun = read_in_Sun_csv(Sun_file)
         df_sun_mp, df_sun_bs = split_BS_MP(df_sun)
-        relevent_crossing_in(df_sun_mp, 'MP', c='purple')
-        relevent_crossing_in(df_sun_bs, 'BS', c='orange')
+        relevent_crossing_in(df_sun_mp, 'MP_s', c='purple')
+        relevent_crossing_in(df_sun_bs, 'BS_s', c='orange')
 
     if philpott == True:
         df_p = read_in_Philpott_list(philpott_file)
         df_p_mp, df_p_bs = split_BS_MP(df_p)
-        relevent_crossing_in(df_p_mp, 'MP', c='pink',ls='dotted')
-        relevent_crossing_in(df_p_bs, 'BS', c='mediumturquoise',ls='--')
+        relevent_crossing_in(df_p_mp, 'MP_p', c='pink',ls='dotted',top=False)
+        relevent_crossing_in(df_p_bs, 'BS_p', c='mediumturquoise',ls='dotted',top=False)
 
 
 def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
