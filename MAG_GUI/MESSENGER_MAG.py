@@ -121,40 +121,40 @@ def doy_to_date(year, day_of_year):
     return target_date.strftime('%Y-%m-%d')
 
 def Read_Mag_npydata(Time_Range, mode='01'):
-    #读取本地npy文件，若本地存在对应时间npy文件，则进行读取，若不存在则PDS自动下载到本地
+    #Read the local npy file. If the local npy file exists at the corresponding time, the NPY file is read. If no NPY file exists, the PDS automatically downloads the NPY file to the local computer
     from MESSENGER_MAG import day_of_year
     DOY_start = day_of_year(int(Time_Range[0][0:4]), int(Time_Range[0][5:7]), int(Time_Range[0][8:10]))
     DOY_end = day_of_year(int(Time_Range[1][0:4]), int(Time_Range[1][5:7]), int(Time_Range[1][8:10]))
-    #检查是否存在npy数据文件夹,若不存在则创立npy数据文件夹
+    #Check whether an npy data folder exists. If not, create an npy data folder
     if mode == '0.05':
-        npyfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Science_MAG/NPY/'  #0.05s分辨率数据文件夹
+        npyfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Science_MAG/NPY/'  #0.05s resolution data folder
         if not os.path.isdir(npyfilepath):
             os.makedirs(npyfilepath)
     else:
-        npyfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Reduced_MAG/NPY/'  #01、05、10、60s分辨率数据文件夹
+        npyfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Reduced_MAG/NPY/'  #01, 05, 10, 60s resolution data folder
         if not os.path.isdir(npyfilepath):
             os.makedirs(npyfilepath)
-    #若时间范围跨多个文件则将连接多个文件
-    MAG = {}  #创建连接多个npy文件数据的空字典
+    #If the time range spans multiple files, multiple files are connected
+    MAG = {}  #Create an empty dictionary that joins data from multiple npy files
     for i in range(DOY_start, DOY_end + 1):
         if mode == '0.05':
             npyfilename = 'MAGMSOSCI' + Time_Range[0][2:4] + str(i).zfill(3) + '_V08.npy'
         else:
             npyfilename = 'MAGMSOSCIAVG' + Time_Range[0][2:4] + str(i).zfill(3) + '_' + mode + '_V08.npy'
         npyfull_path = os.path.join(npyfilepath, npyfilename)
-        # 检查文件是否存在
+        # Check whether the file exists
         if os.path.exists(npyfull_path):
             MAG_npy = np.load(npyfull_path, allow_pickle=True)
             print("npy.File loaded successfully.")
         else:
             print("npy.File does not exist,and will attempt to convert TAB. data to npy. data.")
             if mode == '0.05':
-                tabfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Science_MAG/TAB/'  # 0.05s分辨率数据文件夹
+                tabfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Science_MAG/TAB/'  # 0.05s resolution data folder
                 if not os.path.isdir(tabfilepath):
                     os.makedirs(tabfilepath)
                 tabfilename = 'MAGMSOSCI' + Time_Range[0][2:4] + str(i).zfill(3) + '_V08.TAB'
             else:
-                tabfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Reduced_MAG/TAB/'  # 01、05、10、60s分辨率数据文件夹
+                tabfilepath = MESSENGER_data_folder + '/MESSENGER_Data/MAG/Reduced_MAG/TAB/'  # 01, 05, 10, 60s resolution data folder
                 if not os.path.isdir(tabfilepath):
                     os.makedirs(tabfilepath)
                 tabfilename = 'MAGMSOSCIAVG' + Time_Range[0][2:4] + str(i).zfill(3) + '_' + mode + '_V08.TAB'
@@ -169,13 +169,13 @@ def Read_Mag_npydata(Time_Range, mode='01'):
                 MESSENGER_MAG.Read_MAG_TABdata(tabfull_path, mode)
                 MAG_npy = np.load(npyfull_path, allow_pickle=True)
         for name in MAG_npy.dtype.names:
-            # 如果数组名已经存在于 merged_arrays 中，则将当前数组与已存在的数组合并
+            # If the array name already exists in merged_arrays, the current array is merged with an existing array
             if name in MAG:
                 MAG[name] = np.concatenate((MAG[name], MAG_npy[name]))
-            # 如果数组名不存在于 merged_arrays 中，则将当前数组添加到 merged_arrays 中
+            # If the array name does not exist in merged_arrays, the current array is added to merged_arrays
             else:
                 MAG[name] = MAG_npy[name]
-    Time_range_s = datetime.strptime(Time_Range[0], "%Y-%m-%d %H:%M:%S")#此处可更改
+    Time_range_s = datetime.strptime(Time_Range[0], "%Y-%m-%d %H:%M:%S")#Can be changed here
     Time_range_e = datetime.strptime(Time_Range[1], "%Y-%m-%d %H:%M:%S")
     index = np.where((MAG['Time'] > Time_range_s) & (MAG['Time'] < Time_range_e))
     returndtype = [('Year', 'int32'),
@@ -242,11 +242,11 @@ def MAG_GUI(time_ranges=None, mode='01', time_list=None):
         for record in bslist:
             start = record['start']
             end = record['end']
-            # 解析开始时间和结束时间为 datetime 对象
+            # The start time and end time of parsing are datetime objects
             start_time = datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
             end_time = datetime.strptime(end, '%Y-%m-%d %H:%M:%S')
 
-            # 扩展时间范围：前后各增加1分钟
+            # Expand the time range: Add 2 minute each time
             extended_start = start_time - timedelta(minutes=2)
             extended_end = end_time + timedelta(minutes=2)
 
@@ -438,10 +438,10 @@ def MAG_GUI(time_ranges=None, mode='01', time_list=None):
     def check_marked():
         global time_range_index
         file_path = "time_coords.csv"
-        if os.path.isfile(file_path) and os.path.getsize(file_path) > 0:  # 检查文件是否存在且不为空
+        if os.path.isfile(file_path) and os.path.getsize(file_path) > 0:  # Check that the file exists and is not empty
             with open(file_path, 'r') as file:
                 reader = csv.reader(file)
-                next(reader)  # 跳过头行
+                next(reader)  
                 lines = list(reader)
                 marked = False
                 for line in lines:
