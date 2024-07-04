@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import ephem
 import datetime
+import pickle
 
 import load_messenger_mag as load_mag
 
@@ -602,8 +603,8 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
             axs[ax].plot(x, y, c='gray')
         else:
             axs[ax].plot(x, y, c='gray')
-        axs[ax].set_ylim(-6, 6)
-        axs[ax].set_xlim(-6, 6)
+        axs[ax].set_ylim(-8, 8)
+        axs[ax].set_xlim(-8, 8)
         if hemi == True:
             # Color the right hemisphere black
             axs[ax].fill_between(
@@ -663,13 +664,19 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
             plot_vlines(axs[i], df, x, lb, c, ls,top)
 
     if sun == True:
-        df_sun = read_in_Sun_csv(Sun_file)
+        with open('df_s.p', 'rb') as f:
+            df_sun = pickle.load(f)
+
+        #df_sun = read_in_Sun_csv(Sun_file)
+
         df_sun_mp, df_sun_bs = split_BS_MP(df_sun)
         relevent_crossing_in(df_sun_mp, 'MP_s', c='purple')
         relevent_crossing_in(df_sun_bs, 'BS_s', c='orange')
 
     if philpott == True:
-        df_p = read_in_Philpott_list(philpott_file)
+        with open('df_p.pickle', 'rb') as f:
+            df_p = pickle.load(f)
+        #df_p = read_in_Philpott_list(philpott_file)
         df_p_mp, df_p_bs = split_BS_MP(df_p)
         relevent_crossing_in(df_p_mp, 'MP_p', c='pink',ls='dotted',top=False)
         relevent_crossing_in(df_p_bs, 'BS_p', c='mediumturquoise',ls='dotted',top=False)
