@@ -557,14 +557,19 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     # Top plot B_x field
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
     axs[0].plot(df['Time'], df['mag_x'], linewidth=0.8, c='blue')
+    axs[0].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
 
     # B_y field
     axs[1].set_ylabel("$B_y$ (nT)", fontsize=12)
     axs[1].plot(df['Time'], df['mag_y'], linewidth=0.8, c="#4daf4a")
+    axs[1].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
+
 
     # B_z field
     axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
     axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8, c='#e41a1c')
+    axs[2].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
+
 
     # Amplitude of B field
     axs[3].set_ylabel("|B| (nT)", fontsize=12)
