@@ -18,6 +18,15 @@ import pickle
 
 import load_messenger_mag as load_mag
 
+'''Code to Load in crossing lists from saved pickle files
+
+with open('df_s.p', 'rb') as f:
+    df_sun = pickle.load(f)
+with open('df_p.pickle', 'rb') as f:
+    df_p = pickle.load(f)
+'''
+
+
 ''' Code to load in MESSENGER boundaries identified by Philpott and Sun.
 
  Link to download Philpott boundary list:  
@@ -676,13 +685,15 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     if philpott == True:
         with open('df_p.pickle', 'rb') as f:
             df_p = pickle.load(f)
+
         #df_p = read_in_Philpott_list(philpott_file)
+        
         df_p_mp, df_p_bs = split_BS_MP(df_p)
         relevent_crossing_in(df_p_mp, 'MP_p', c='pink',ls='dotted',top=False)
         relevent_crossing_in(df_p_bs, 'BS_p', c='mediumturquoise',ls='dotted',top=False)
 
 
-def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
+def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, save=False, num=0,plot=True):
     ''' Plots time series of B-field between a user inputed start date
         and end date. Also returns the data for this time period in
         a dataframe
@@ -711,7 +722,8 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj,
+        if plot == True:
+            plot_mag_time_series(df, start_date_obj,
                              end_date_obj, sun=sun, philpott=philpott)
 
     # If data spans two days then load in both days and concat into one dataframe, then same procedure as above
@@ -722,7 +734,8 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
+        if plot == True:
+            plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
 
     # If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
@@ -735,7 +748,9 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False):
         x = df.index[(df["Time"] >= start_date_obj)
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
-        plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
-
+        if plot == True:
+            plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
+    if save == True:
+        plt.savefig(f'Largest{num}.png')
     plt.show()
     return df

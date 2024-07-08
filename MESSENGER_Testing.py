@@ -35,6 +35,7 @@ import matplotlib.dates as mdates
 import pickle
 import load_messenger_mag as load_messenger_mag
 import MESSENGER_Boundary_ID as mag
+import tqdm
 
 # with open('df_p.pickle', 'rb') as f:
 #     df_p = pickle.load(f)
@@ -1048,39 +1049,26 @@ def crossing_duration(df, df_sun, seperate=False):
         plt.xlabel('Duration of mp crossing (s)')
         return df_mp, df_sun_mp
 
-def orbits_old(df):
-    '''
-    Assign orbit number to each crossing. Calling 1 orbit bs_in to bs_out, assuming not every orbit has bs but has mp_in.
-    '''
-    df['Orbit'] = 0
-    orbit_number = -1
-    for i in df.index:
-        if df.Type[i] == "mp_in":
-            orbit_number += 1
-            if df.Type[i-1] == 'bs_in':
-                df.loc[i-1,'Orbit'] = orbit_number
-        if orbit_number == -1:
-            df.loc[i,'Orbit'] = orbit_number+1
-        else:
-            df.loc[i,'Orbit'] = orbit_number
-    return orbit_number
-
 
 # Returns an array of number of crossings per orbit and any 
 # orbits with crossings !=4. Need to run df through orbits first
+
+#!!! Not fully working, come back to this!!!
+
 def orbit_crossings(df):
+    # weird_orbit = []
+    # j=0
+    # orbit_counts = df.loc[df['Orbit'].value_counts()!=4,df['Orbit']]
+    # print(orbit_counts)
     NumCrossings = []
     counter = 0
-    for i in df.index:
-        if i == 0:
+    for i in range(1,len(df.index)):
+        if df.Orbit[i] != df.Orbit[i-1]:
+            NumCrossings.append(counter)
+            counter = 0
             counter += 1
         else:
-            if df.Orbit[i] != df.Orbit[i-1]:
-                NumCrossings.append(counter)
-                counter = 0
-                counter += 1
-            else:
-                counter += 1
+            counter += 1
     NumCrossings = np.asarray(NumCrossings)
     # Print orbit number where there is not 4 crossings
     weird_crossings = np.where(NumCrossings != 4)
@@ -1113,37 +1101,8 @@ def time_in_sheath(df,df_sun):
     plt.xlabel('Duration of time in sheath (s)')
     return 
 
-def orbits(df):
-    '''Function to assign orbit number to each crossing based on peri-to-peri'''
-    r_all = np.sqrt(df.start_x_msm.to_numpy()**2 + df.start_y_msm.to_numpy()**2 + \
-                    df.start_z_msm.to_numpy()**2)
-    t_all = df.start
-    from scipy.signal import find_peaks
-    
-    peaks, _ = find_peaks(-r_all)
 
-    # Filter peaks based on time separation
-    min_separation = datetime.timedelta(hours=6)  # Minimum separation in time
-    filtered_peaks = []
-    print(len(peaks))
-    for peak in peaks:
-        if len(filtered_peaks) == 0 or t_all[peak] - t_all[filtered_peaks[-1]] >= min_separation:
-            filtered_peaks.append(peak)
-    peaks=filtered_peaks
-    print(len(peaks))
-    orbit = 1
-    df['Orbit'] = 0
-    for p in range(len(peaks)-1):
-        orbit_range = [peaks[p],peaks[p+1]]
-        df.loc[peaks[p]:peaks[p+1],'Orbit'] = orbit
-        orbit+=1
-        time_range = [df.start.iloc[orbit_range[0]],df.start.iloc[orbit_range[1]]]
-        if p == len(peaks)-2:
-            df.loc[peaks[-1]+1:,'Orbit'] = orbit
-    return df
-
-
-def save_largest(df):
+def save_largest(df,sun = False, philpott = False):
     df = df.nlargest(10, 'Interval')
     minute = datetime.timedelta(minutes=10)
     start_time = []
@@ -1159,9 +1118,134 @@ def save_largest(df):
         output_datetime_str = parsed_datetime.strftime("%Y-%m-%d-%H-%M-%S")
         end_time.append(str(output_datetime_str))
     for i in range(0,10):
-        mag.mag_time_series(start_date=start_time[i],end_date=end_time[i],sun=True, save = True, num = i)
+        if sun == True:
+            mag.mag_time_series(start_date=start_time[i],end_date=end_time[i],sun=True, save = True, num = i)
+        if philpott == True:
+            mag.mag_time_series(start_date=start_time[i],end_date=end_time[i],philpott=True, save = True, num = i)
         
+
+
+# combining all 60 second resolution data into one .csv file with 6 min resolution to find orbits  
+import os
+def find_tab_files(root_dir):
+    """Recursively find all .TAB files in root_dir and its subdirectories."""
+    tab_files = []
+    for path, _, files in os.walk(root_dir):
+        for file in files:
+            if file.endswith('60_V08.TAB'):
+                tab_files.append(os.path.join(path, file))
+    return tab_files
+
+def combine_tab_files(tab_files, output_file):
+    """Combine multiple .TAB files into one CSV file using np.genfromtxt."""
+    combined_data = []
+    
+    for file in tab_files:
+        data = np.genfromtxt(file, skip_header=0)
+        x = np.array(data)[::10]
+        combined_data.append(x)
+    
+    # Concatenate all the data arrays
+    combined_data = np.concatenate(combined_data)
+    
+    # Save to a new CSV file
+    np.savetxt(output_file, combined_data, delimiter=',')
+    
+def read_in_all():
+    from datetime import datetime, timedelta
+
+    # Read the CSV file into a DataFrame
+    df = pd.read_csv('all.csv', header=None)
+    df.columns = ['year', 'day_of_year', 'hour', 'second', 'col5', 'col6', 'col7', 'ephx', 'ephy', 'ephz','col11','col12','col13','col14','col15','col16']
+    # Combine the time components into a single datetime column
+    def combine_time_components(row):
+        year = int(row['year'])
+        day_of_year = int(row['day_of_year'])
+        hour = int(row['hour'])
+        second = float(row['second'])
         
+        # Combine the time components into a datetime object
+        date = datetime(year, 1, 1) + timedelta(days=day_of_year - 1, hours=hour, seconds=second)
+        return date
+
+    # Apply the function to each row to create the 'time' column
+    df['time'] = df.apply(combine_time_components, axis=1)
+
+    # Select the relevant columns
+    df = df[['time', 'ephx', 'ephy', 'ephz']]
+    date_string = df['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ephx = df['ephx']
+    ephy = df['ephy']
+    msm_ephx = []
+    msm_ephy = []
+    for i in tqdm.tqdm(range(0,len(date_string))):
+        phi=load_messenger_mag.get_aberration_angle(date_string[i])
+        new_ephx = ephx[i]*np.cos(phi)-ephy[i]*np.sin(phi)
+        new_ephy = ephx[i]*np.sin(phi)+ephy[i]*np.cos(phi)
+        msm_ephx.append(new_ephx)
+        msm_ephy.append(new_ephy)
+    
+    df['ephem_x'] = msm_ephx
+    df['ephem_y'] = msm_ephy
+    # Display the resulting DataFrame
+    return df
+
+def orbit(df_all,df_crossing):
+    #Uncomment below for first run
+    r_all = np.sqrt(df_all.ephx.to_numpy()**2 + df_all.ephy.to_numpy()**2 + \
+                        df_all.ephz.to_numpy()**2)
+    from scipy.signal import find_peaks
+    peaks=find_peaks(r_all)
+    orbits = 0
+    df_crossing['Orbit'] = len(peaks[0]-1)
+    for p in tqdm.tqdm(range(len(peaks[0])-1)):
+        orbit_range = [peaks[0][p],peaks[0][p+1]]
+        time_range = [df_all.time.iloc[orbit_range[0]],df_all.time.iloc[orbit_range[1]]]
+        df_crossing.loc[(df_crossing['start'] <= time_range[1]) & (df_crossing['start'] >= time_range[0]), 'Orbit'] = int(orbits)
+        orbits+=1
+    print(df_crossing)
+    return df_crossing
+
+
+def analyse_largest_mp_crossings_sheath(df):
+    #input is crossing list
+    df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
+    minutes = datetime.timedelta(minutes=10)
+    df['Interval'] = (df.end-df.start).dt.total_seconds()
+    df = df.nlargest(10, 'Interval')
+    for i in df.index:
+        if df.loc[i,'Type'] == 'mp_in':
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            #Add to new column
+            df.loc[i,'avg_Bx_10'] = (df_info['mag_x'].mean())
+            df.loc[i,'std_Bx_10'] = (df_info['mag_x'].std())
+            half = int(len(df_info)/2)
+            df_info_5 = df_info.iloc[half:]
+            df.loc[i,'avg_Bx_5'] = (df_info_5['mag_x'].mean())
+            df.loc[i,'std_Bx_5'] = (df_info_5['mag_x'].std())
+        if df.loc[i,'Type'] == 'mp_out':
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']+minutes), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            #Add to new column
+            df.loc[i,'avg_Bx_10'] = (df_info['mag_x'].mean())
+            df.loc[i,'std_Bx_10'] = (df_info['mag_x'].std())
+            half = int(len(df_info)/2)
+            df_info_5 = df_info.iloc[:-half]
+            df.loc[i,'avg_Bx_5'] = (df_info_5['mag_x'].mean())
+            df.loc[i,'std_Bx_5'] = (df_info_5['mag_x'].std())
+
+
+    return df
+
+        
+        #print(df_info)
 
 # def compare_boundaries(df1, df2, dt=30):
 
@@ -1247,3 +1331,50 @@ def save_largest(df):
 #     print(df1_both['start']-df2_both['start'])
 
 #     return
+
+# def orbits_old(df):
+#     '''
+#     Assign orbit number to each crossing. Calling 1 orbit bs_in to bs_out, assuming not every orbit has bs but has mp_in.
+#     '''
+#     df['Orbit'] = 0
+#     orbit_number = -1
+#     for i in df.index:
+#         if df.Type[i] == "mp_in":
+#             orbit_number += 1
+#             if df.Type[i-1] == 'bs_in':
+#                 df.loc[i-1,'Orbit'] = orbit_number
+#         if orbit_number == -1:
+#             df.loc[i,'Orbit'] = orbit_number+1
+#         else:
+#             df.loc[i,'Orbit'] = orbit_number
+#     return orbit_number
+
+# def orbits_from_list(df):
+#     '''Function to assign orbit number to each crossing based on peri-to-peri'''
+#     '''Use eph data? Thats a lot of data! Could use 60 sec resolution so ~100mB'''
+#     r_all = np.sqrt(df.start_x_msm.to_numpy()**2 + df.start_y_msm.to_numpy()**2 + \
+#                     df.start_z_msm.to_numpy()**2)
+#     t_all = df.start
+#     from scipy.signal import find_peaks
+    
+#     peaks, _ = find_peaks(-r_all)
+
+#     # Filter peaks based on time separation
+#     min_separation = datetime.timedelta(hours=6)  # Minimum separation in time
+#     filtered_peaks = []
+#     print(len(peaks))
+#     for peak in peaks:
+#         if len(filtered_peaks) == 0 or t_all[peak] - t_all[filtered_peaks[-1]] >= min_separation:
+#             filtered_peaks.append(peak)
+#     peaks=filtered_peaks
+#     print(len(peaks))
+#     orbit = 1
+#     df['Orbit'] = 0
+#     for p in range(len(peaks)-1):
+#         orbit_range = [peaks[p],peaks[p+1]]
+#         df.loc[peaks[p]:peaks[p+1],'Orbit'] = orbit
+#         orbit+=1
+#         time_range = [df.start.iloc[orbit_range[0]],df.start.iloc[orbit_range[1]]]
+#         if p == len(peaks)-2:
+#             df.loc[peaks[-1]+1:,'Orbit'] = orbit
+#     return df
