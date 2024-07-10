@@ -512,17 +512,17 @@ def plot_vlines(ax, df, time, lb, c, ls,top=True):
         ax.axvline(df['start'][i], linestyle=ls, label=lb, c=c)
         ymin, ymax =  ax.get_ylim()
         if top ==True:
-            ax.text(df['start'][i], ymax, lb, va='top',rotation=90,
-                    fontsize=9, horizontalalignment='right')
+            ax.text(df['start'][i], ymax+10, lb, va='top',rotation=90,
+                    fontsize=12, horizontalalignment='right')
             ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
-            ax.text(df['end'][i], ymax, lb, va='top',rotation=90,
-                    fontsize=9,horizontalalignment='left')
+            ax.text(df['end'][i], ymax+10, lb, va='top',rotation=90,
+                    fontsize=12,horizontalalignment='left')
         else:
-            ax.text(df['start'][i], ymin, lb, va='bottom',rotation=90,
-                    fontsize=9, horizontalalignment='right')
+            ax.text(df['start'][i], ymin-10, lb, va='bottom',rotation=90,
+                    fontsize=12, horizontalalignment='right')
             ax.axvline(df['end'][i], linestyle=ls, label=lb, c=c)
-            ax.text(df['end'][i], ymin, lb, va='bottom',rotation=90,
-                    fontsize=9,horizontalalignment='left')
+            ax.text(df['end'][i], ymin-10, lb, va='bottom',rotation=90,
+                    fontsize=12,horizontalalignment='left')
 
 
 def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
@@ -566,15 +566,17 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     # Top plot B_x field
     axs[0].set_ylabel("$B_x$ (nT)", fontsize=12)
     axs[0].plot(df['Time'], df['mag_x'], linewidth=0.8, c='blue')
+    axs[0].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
 
     # B_y field
     axs[1].set_ylabel("$B_y$ (nT)", fontsize=12)
     axs[1].plot(df['Time'], df['mag_y'], linewidth=0.8, c="#4daf4a")
+    axs[1].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
 
     # B_z field
     axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
     axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8, c='#e41a1c')
-
+    axs[2].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
     # Amplitude of B field
     axs[3].set_ylabel("|B| (nT)", fontsize=12)
     axs[3].plot(df['Time'], df['magamp'], linewidth=0.8, c='black')
@@ -691,7 +693,7 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
         df_p_mp, df_p_bs = split_BS_MP(df_p)
         relevent_crossing_in(df_p_mp, 'MP_p', c='pink',ls='dotted',top=False)
         relevent_crossing_in(df_p_bs, 'BS_p', c='mediumturquoise',ls='dotted',top=False)
-
+    return axs, fig
 
 def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, save=False, num=0,plot=True):
     ''' Plots time series of B-field between a user inputed start date
@@ -723,8 +725,9 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, s
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
         if plot == True:
-            plot_mag_time_series(df, start_date_obj,
+            axs, fig = plot_mag_time_series(df, start_date_obj,
                              end_date_obj, sun=sun, philpott=philpott)
+            return axs, fig
 
     # If data spans two days then load in both days and concat into one dataframe, then same procedure as above
     elif dt == 1:
@@ -735,8 +738,8 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, s
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
         if plot == True:
-            plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
-
+            axs, fig = plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
+            return axs, fig
     # If data spans multiple days, add all to one dataframe, and then select relevent data
     else:
         df = load_mag.load_MESSENGER_into_tplot(start_date, res)
@@ -749,8 +752,9 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, s
                      & (df["Time"] <= end_date_obj)]
         df = df[df.index.isin(x)]
         if plot == True:
-            plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
+            axs, fig= plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
+            return axs, fig
     if save == True:
-        plt.savefig(f'Largest{num}.png')
+        plt.savefig(f'time_series_{num}.png')
     plt.show()
     return df

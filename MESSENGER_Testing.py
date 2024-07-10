@@ -36,6 +36,8 @@ import pickle
 import load_messenger_mag as load_messenger_mag
 import MESSENGER_Boundary_ID as mag
 import tqdm
+from scipy.signal import find_peaks
+
 
 # with open('df_p.pickle', 'rb') as f:
 #     df_p = pickle.load(f)
@@ -1194,7 +1196,7 @@ def orbit(df_all,df_crossing):
     #Uncomment below for first run
     r_all = np.sqrt(df_all.ephx.to_numpy()**2 + df_all.ephy.to_numpy()**2 + \
                         df_all.ephz.to_numpy()**2)
-    from scipy.signal import find_peaks
+    
     peaks=find_peaks(r_all)
     orbits = 0
     df_crossing['Orbit'] = len(peaks[0]-1)
@@ -1206,13 +1208,49 @@ def orbit(df_all,df_crossing):
     print(df_crossing)
     return df_crossing
 
+def sign_change_count(df):
+    changes = 0
+    prev = df.values[0]/abs(df.values[0])
+    for i in df:
+        if i < 0:
+            sign = -1
+        else:
+            sign = 1
+        if sign == -prev:
+            changes+=1
+            prev = sign
+    return int(changes)
 
-def analyse_largest_mp_crossings_sheath(df):
+def analyse_mp_crossings_sheath(df,n=10,largest = True):
     #input is crossing list
     df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
     minutes = datetime.timedelta(minutes=10)
     df['Interval'] = (df.end-df.start).dt.total_seconds()
-    df = df.nlargest(10, 'Interval')
+    
+    if largest == True:
+        df = df.nlargest(n, 'Interval')
+    else:
+        df = df.nsmallest(n, 'Interval')
+
+    def add_info(df,i,df_info,orient):
+        sign_change=sign_change_count(df_info[f'mag_{orient}'])
+        df.loc[i,f'rotations_{orient}_10'] = (sign_change)
+        df.loc[i,f'avg_B{orient}_10'] = (df_info[f'mag_{orient}'].mean())
+        df.loc[i,f'std_B{orient}_10'] = (df_info[f'mag_{orient}'].std())
+        half = int(len(df_info)/2)
+        if df.loc[i,'Type'] == 'mp_in':
+            df_info_5 = df_info.iloc[half:]
+        else:
+            df_info_5 = df_info.iloc[:-half]   
+        sign_change_5=sign_change_count(df_info_5[f'mag_{orient}'])
+        df.loc[i,f'rotations_{orient}_5'] = (sign_change_5)
+        df.loc[i,f'avg_B{orient}_5'] = (df_info_5[f'mag_{orient}'].mean())
+        df.loc[i,f'std_B{orient}_5'] = (df_info_5[f'mag_{orient}'].std())
+        if orient == 'z':
+            df.loc[i,f'avg_BAmp_10'] = (df_info[f'magamp'].mean())
+            df.loc[i,f'avg_BAmp_5'] = (df_info_5[f'magamp'].mean())
+        return df
+
     for i in df.index:
         if df.loc[i,'Type'] == 'mp_in':
             parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
@@ -1221,12 +1259,10 @@ def analyse_largest_mp_crossings_sheath(df):
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
             df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
             #Add to new column
-            df.loc[i,'avg_Bx_10'] = (df_info['mag_x'].mean())
-            df.loc[i,'std_Bx_10'] = (df_info['mag_x'].std())
-            half = int(len(df_info)/2)
-            df_info_5 = df_info.iloc[half:]
-            df.loc[i,'avg_Bx_5'] = (df_info_5['mag_x'].mean())
-            df.loc[i,'std_Bx_5'] = (df_info_5['mag_x'].std())
+            df=add_info(df,i,df_info,'x')
+            df=add_info(df,i,df_info,'y')
+            df=add_info(df,i,df_info,'z')
+
         if df.loc[i,'Type'] == 'mp_out':
             parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
@@ -1234,18 +1270,193 @@ def analyse_largest_mp_crossings_sheath(df):
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
             df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
             #Add to new column
-            df.loc[i,'avg_Bx_10'] = (df_info['mag_x'].mean())
-            df.loc[i,'std_Bx_10'] = (df_info['mag_x'].std())
-            half = int(len(df_info)/2)
-            df_info_5 = df_info.iloc[:-half]
-            df.loc[i,'avg_Bx_5'] = (df_info_5['mag_x'].mean())
-            df.loc[i,'std_Bx_5'] = (df_info_5['mag_x'].std())
-
+            df=add_info(df,i,df_info,'x')
+            df=add_info(df,i,df_info,'y')
+            df=add_info(df,i,df_info,'z')
 
     return df
 
+#Histograms of Bx in MP, MSheath, and MSphere 
+def mag_mp_hist(df,n=1,minute=5,combine = False,MS=False):
+    from scipy.optimize import curve_fit
+
+    def Gauss (x,mu,Sigma,A):
+        return A*np.exp(-(x-mu)**2/(2*Sigma**2))
+
+    def DoubleGaussian(x, mu1, Sigma1, A1, mu2, Sigma2, A2):
+        return Gauss(x,mu1,Sigma1,A1)+Gauss(x,mu2,Sigma2,A2)
+    
+    df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
+    df['Interval'] = (df.end-df.start).dt.total_seconds()
+    df = df.nlargest(n, 'Interval')
+    minutes = datetime.timedelta(minutes=minute)
+    if combine == False:
+        for i in df.index:
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            bins = int(np.sqrt(len(df_info['mag_x'])))
+            x_fit = np.linspace(df_info['mag_x'].min(), df_info['mag_x'].max(), 1000)
+            plt.title('Magnetopause interval')
+            y,x,_ = plt.hist(df_info['mag_x'].values,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+
+            #y= y-np.mean(y)+10            
+            dis = 5*((df_info['mag_x'].max() - df_info['mag_x'].min())/bins)
+            
+            A1,A2 = np.sort(find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[1]['peak_heights'])[-2:]    
+            
+            x1=np.where(find_peaks(y, height=np.mean(y+10), prominence=50,distance=dis)[1]['peak_heights']==A1)[0][0]
+            x2=np.where(find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[1]['peak_heights']==A2)[0][0]
+            
+            x1 = find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[0][x1]
+            x2 = find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[0][x2]
+            
+            mu1 = x[x1]
+            mu2 = x[x2]
+            
+            expected = (mu1,5,A1,mu2,5,A2)
+            
+            params, cov = curve_fit(DoubleGaussian, x[:-1], y[:],expected)
+            sigma=np.sqrt(np.diag(cov))
+            #print(expected)
+            print(params)
+            split=(x_fit[find_peaks(-DoubleGaussian(x_fit,*params))[0][0]])
+
+            if params[0]<params[3]:
+                peak1=params[0]
+                sigma1=params[1]
+                peak2=params[3]
+                sigma2=params[4]
+            else:
+                peak1=params[3]
+                sigma1=params[4]
+                peak2=params[0]
+                sigma2=params[1]
+            n=(peak2-peak1)/(sigma1+sigma2)
+            print(n)
+            split1=peak1+n*sigma1
+            split2=peak2-n*sigma2
+            plt.vlines(split1,ymin=0,ymax=y.max()+20,colors='r',ls='--')
+
+            plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--')
+            plt.xlim(-60,60)
+            plt.plot(x_fit, DoubleGaussian(x_fit, *params), color='red', lw=3, label='Double Gaussian Fit')
+            plt.ylabel('Number of Measurements')
+            plt.xlabel('$B_x$ in Magnetopause')
+            plt.legend()
+            plt.savefig(f'In_MP_{i}.png')
+            plt.show()
+
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            Total_start = start_str
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            bins = 10
+            if MS == True:
+                plt.title(f'{minute} minutes before MP')
+                plt.hist(df_info['mag_x'].values,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+                plt.ylabel('Number of Measurements')
+                if df.loc[i,'Type'] == 'mp_in':
+                    plt.title(f'Magnetosheath {minute} minutes before MP interval for inbound')
+                    plt.xlabel('$B_x$ in magnetosheath')
+                else:
+                    plt.title(f'Magnetosphere {minute} minutes before MP interval for outbound')
+                    plt.xlabel('$B_x$ in magnetosphere')
+                plt.legend()
+            #plt.savefig('Before_MP.png')
+            #plt.show()
+
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']+minutes), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            Total_end = end_str
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            bins = 10
+            if MS == True:
+                plt.hist(df_info['mag_x'].values,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+                plt.ylabel('Number of Measurements')
+                if df.loc[i,'Type'] == 'mp_in':
+                    plt.title(f'Magnetosphere {minute} minutes after MP interval for inbound')
+                    plt.xlabel('$B_x$ in magnetosheath')
+                else:
+                    plt.title(f'Magnetosheath {minute} minutes after MP interval for outbound')
+                    plt.xlabel('$B_x$ in magnetosheath')
+                plt.legend()
+                #plt.savefig('After_MP.png')
+                #plt.show()
+            mag.mag_time_series(start_date=Total_start,end_date=Total_end,philpott=True, save=True,num = i)
         
+    else:
+        MP = []
+        MSheath_in=[]
+        MSheath_out=[]
+        MSphere_in=[]
+        MSphere_out=[]
+        for i in df.index:
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            MP.append(df_info['mag_x'].values)
+
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            if df.loc[i,'Type'] == 'mp_in':
+                MSheath_in.append(df_info['mag_x'].values)
+            else:
+                MSphere_out.append(df_info['mag_x'].values)
+
+            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']+minutes), "%Y-%m-%d %H:%M:%S")
+            end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            if df.loc[i,'Type'] == 'mp_in':
+                MSphere_in.append(df_info['mag_x'].values)
+            else:
+                MSheath_out.append(df_info['mag_x'].values)
+        bins=50
+        plt.title('Magnetopause interval')
+        plt.hist(MP, bins=bins, density = True,label=f'Orbits = {n}')
+        plt.ylabel('Number of Measurements')
+        plt.xlabel('$B_x$ in Magnetopause')
+        plt.legend()
+        plt.savefig('In_MP.png')
+        plt.show()
+
         #print(df_info)
+
+def spatial_box_plot(df_crossing,orient='x'):
+    df=df_crossing
+    df['Interval'] = (df.end-df.start).dt.total_seconds()
+    df[f'Avg_{orient}'] = (df[f'start_{orient}_msm']+df[f'end_{orient}_msm'])/2
+    
+    quant25=df['Interval'].quantile(0.25)
+    quant50=df['Interval'].quantile(0.5)
+    quant75=df['Interval'].quantile(0.75)
+
+    bin1=df[f'Avg_{orient}'][df['Interval']<=quant25].values
+    bin2=df[f'Avg_{orient}'][(df['Interval']>quant25)&((df['Interval']<=quant50))].values
+    bin3=df[f'Avg_{orient}'][(df['Interval']>quant50)&((df['Interval']<=quant75))].values
+    bin4=df[f'Avg_{orient}'][(df['Interval']>quant75)].values
+
+    labels=[ f'0 - {quant25} s', f' {quant25} - {quant50} s',f'{quant50} - {quant75} s',f'> {quant75} s']
+    total =[bin1,bin2,bin3,bin4]
+    plt.boxplot(total,labels=labels,whis=(0,100))
+    #plt.violinplot(total)#,labels=labels,whis=(0,100))
+    print(len(bin1),len(bin2),len(bin3),len(bin4))
+    plt.ylabel(f'Position in {orient}_msm')
+    plt.xlabel('Duration of Magnetopause Crossing')
+
 
 # def compare_boundaries(df1, df2, dt=30):
 
