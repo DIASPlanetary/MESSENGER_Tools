@@ -38,11 +38,17 @@ import MESSENGER_Boundary_ID as mag
 import tqdm
 from scipy.signal import find_peaks
 
-
-# with open('df_p.pickle', 'rb') as f:
-#     df_p = pickle.load(f)
-# with open('df_s.p', 'rb') as f:
-#     df_sun = pickle.load(f)
+#Function to load in crossing lists and add orbit informatiom
+def start():
+    '''Returns df_all, df_p, df_sun'''
+    with open('df_p.pickle', 'rb') as f:
+        df_p = pickle.load(f)
+    with open('df_s.p', 'rb') as f:
+        df_sun = pickle.load(f)
+    df_all = read_in_all()
+    df_p = orbit(df_all,df_p)
+    df_sun = orbit(df_all,df_sun)
+    return df_all, df_p, df_sun
 
 philpott_file = '/home/adam/Desktop/DIAS/MESSENGER/MESSENGER_Boundary_Testing/jgra55678-sup-0002-table_si-s01.csv'
 
@@ -886,7 +892,7 @@ def all_mag_time_series(date_string, res="01", full=False, FIPS=False):
     ax.legend()
 
 
-# Breakinf lists into 2 dif types, identifying difference betweem starts
+# Breaking lists into 2 dif types, identifying difference betweem starts
 # times and ploting histogram
 def compare_lists(df, df_p, plot=False):
 
@@ -961,6 +967,7 @@ def compare_lists(df, df_p, plot=False):
 
 # Check where crossings have no overlap looking at partner list created above
 def crossing_disagree(df, t):
+    
     # df is partnered list, t is max time diff between crossing pair in seconds
     x = df.index[~(((df['start'] >= df['startP'])
                     & (df['start'] <= df['endP'])) | ((df['end'] >= df['startP'])
@@ -988,6 +995,10 @@ def crossing_disagree(df, t):
 
 
 def orbits_without_bs(df):
+    ''' Returns orbits with no bowshock crossings after mp_out
+    Input
+    df -- crossing list dataframe 
+    '''
     prev = 'mp'
     j = 0
     x = []
@@ -1005,9 +1016,13 @@ def orbits_without_bs(df):
 
     return df_no_bs
 
-# Plotting histograms of MP crossing intervals, Seperate = True seperates in and out
 def crossing_duration(df, df_sun, seperate=False):
-
+    '''Plotting histograms of MP crossing intervals
+    Inputs
+    df -- philpott crossings dataframe
+    df_sun -- Sun crossings dataframe
+    seperate -- when true seperates histograms into in and out bound crossings (boolean, Default = False)
+    '''
     df['Interval'] = (df.end-df.start).dt.total_seconds()
 
     df_sun['Interval'] = (df_sun.end-df_sun.start).dt.total_seconds()
@@ -1058,6 +1073,10 @@ def crossing_duration(df, df_sun, seperate=False):
 #!!! Not fully working, come back to this!!!
 
 def orbit_crossings(df):
+    '''Function to count orbits without 4 crossings
+    Input
+    df -- dataframe
+    '''
     # weird_orbit = []
     # j=0
     # orbit_counts = df.loc[df['Orbit'].value_counts()!=4,df['Orbit']]
@@ -1078,7 +1097,11 @@ def orbit_crossings(df):
     return NumCrossings, weird_crossings
 
 def time_in_sheath(df,df_sun):
-    '''Histogram of time in sheath durations: run df through orbits first''' 
+    '''Histogram of time in sheath durations: run df through orbits first
+    Inputs
+    df -- Philpott crossing dataframe
+    df_sun -- Sun crossing dataframe
+    ''' 
     #mp_out(end)-bs_out(start)
     #bs_in(end)-mp_in(start)
 
@@ -1105,6 +1128,13 @@ def time_in_sheath(df,df_sun):
 
 
 def save_largest(df,sun = False, philpott = False):
+    '''
+    Save the timeseries for the 10 longest crossings
+    Inputs
+    df -- crossings dataframe
+    sun -- If true plots crossing lines identified by Sun (boolean, default = False)
+    philpott -- If true plots crossing lines identified by Philpott (boolean, default = False)
+    '''
     df = df.nlargest(10, 'Interval')
     minute = datetime.timedelta(minutes=10)
     start_time = []
@@ -1154,6 +1184,8 @@ def combine_tab_files(tab_files, output_file):
     np.savetxt(output_file, combined_data, delimiter=',')
     
 def read_in_all():
+    '''Read in all.csv which is 10 minute resolution ephemeris data for MESSENGER
+    '''
     from datetime import datetime, timedelta
 
     # Read the CSV file into a DataFrame
@@ -1193,7 +1225,13 @@ def read_in_all():
     return df
 
 def orbit(df_all,df_crossing):
-    #Uncomment below for first run
+    ''' Adds orbit number to crossing list dataframes
+    Inputs
+    df_all -- dataframe containing ephemeris
+ data at a 10 minute resolution obtained from "df_all=read_in_all()"
+    df_crossing -- dataframe containing crossing data
+    '''
+
     r_all = np.sqrt(df_all.ephx.to_numpy()**2 + df_all.ephy.to_numpy()**2 + \
                         df_all.ephz.to_numpy()**2)
     
@@ -1209,6 +1247,10 @@ def orbit(df_all,df_crossing):
     return df_crossing
 
 def sign_change_count(df):
+    '''Function to count the number of sign changes in a df column.
+    Input
+    df -- dataframe column such a df[mag_x] 
+    '''
     changes = 0
     prev = df.values[0]/abs(df.values[0])
     for i in df:
@@ -1222,7 +1264,13 @@ def sign_change_count(df):
     return int(changes)
 
 def analyse_mp_crossings_sheath(df,n=10,largest = True):
-    #input is crossing list
+    ''' Function to add mean, standard deviation, and number of rotations in the
+    magentosheath to the crossing dataframe
+    Input
+    df -- crossing dataframe
+    n -- number of crossings considered (int, default = 10)
+    largest -- Looking at n largest crossings, if False looks at smallest (boolean, default = True) 
+    '''
     df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
     minutes = datetime.timedelta(minutes=10)
     df['Interval'] = (df.end-df.start).dt.total_seconds()
@@ -1277,7 +1325,21 @@ def analyse_mp_crossings_sheath(df,n=10,largest = True):
     return df
 
 #Histograms of Bx in MP, MSheath, and MSphere 
-def mag_mp_hist(df,n=1,minute=5,combine = False,MS=False):
+def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseries=True, splitDistro=False, dayside=False):
+    '''Plot histograms of B_x in Magnetopause, Magnetosheath and Magnetosphere
+    Fits a double Gaussian to identify crossing location, Magnetosheath and Magnetosphere
+    during crossing interval
+    Inputs
+    df -- Dataframe of crossings
+    n -- Number of largest crossings to be considered (int, default = 1)
+    minute -- Amount of minutes considered each side of crossing (int, default = 5)
+    time_win -- time window, in seconds, used to average RMS (int, default = 120)
+    combine -- plot all histograms on the one plot (boolean, default = False)
+    MS -- Plot histograms of Magnetosheath and Magnetosphere (boolean, default = False)
+    timeseries -- plot time series for crossing (boolean, default = True)
+    splitDistro -- plot a histogram of the split location 
+    dayside -- True plots only dayside crossings (boolean, default = False)
+    '''
     from scipy.optimize import curve_fit
 
     def Gauss (x,mu,Sigma,A):
@@ -1288,67 +1350,180 @@ def mag_mp_hist(df,n=1,minute=5,combine = False,MS=False):
     
     df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
     df['Interval'] = (df.end-df.start).dt.total_seconds()
+    
+    if dayside == True:
+        df = df[(df['start_x_msm'] > 0) & (df['end_x_msm'] > 0)]
     df = df.nlargest(n, 'Interval')
     minutes = datetime.timedelta(minutes=minute)
     if combine == False:
+        split_middle=[]
+        split_std=[]
         for i in df.index:
+            # if i != 11317:
+            #     continue
             parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
             parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
             df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
             bins = int(np.sqrt(len(df_info['mag_x'])))
+            if bins <= 0:
+                bins = 50
+            
             x_fit = np.linspace(df_info['mag_x'].min(), df_info['mag_x'].max(), 1000)
-            plt.title('Magnetopause interval')
-            y,x,_ = plt.hist(df_info['mag_x'].values,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+            y,x,_ = plt.hist(df_info['mag_x'].values,density = True,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
 
-            #y= y-np.mean(y)+10            
+            #y= y-np.mean(y)+10
+            # Peaks must be 5 bins away from eachother to count            
             dis = 5*((df_info['mag_x'].max() - df_info['mag_x'].min())/bins)
-            
-            A1,A2 = np.sort(find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[1]['peak_heights'])[-2:]    
-            
-            x1=np.where(find_peaks(y, height=np.mean(y+10), prominence=50,distance=dis)[1]['peak_heights']==A1)[0][0]
-            x2=np.where(find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[1]['peak_heights']==A2)[0][0]
-            
-            x1 = find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[0][x1]
-            x2 = find_peaks(y, height=np.mean(y+10),prominence=50, distance=dis)[0][x2]
-            
-            mu1 = x[x1]
-            mu2 = x[x2]
-            
-            expected = (mu1,5,A1,mu2,5,A2)
-            
-            params, cov = curve_fit(DoubleGaussian, x[:-1], y[:],expected)
-            sigma=np.sqrt(np.diag(cov))
-            #print(expected)
-            print(params)
-            split=(x_fit[find_peaks(-DoubleGaussian(x_fit,*params))[0][0]])
+            prom = 0.01
 
-            if params[0]<params[3]:
-                peak1=params[0]
-                sigma1=params[1]
-                peak2=params[3]
-                sigma2=params[4]
+            if len(find_peaks(y, height=np.mean(y), prominence=prom,distance=dis)[0]) >= 2:
+                print('BIMODAL')
+                bimodal = True
+                #Finding height of two tallest peaks
+                A1,A2 = np.sort(find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[1]['peak_heights'])[-2:]    
+                
+                #Finding corrresponding x position of the two tallest peaks
+                x1=np.where(find_peaks(y, height=np.mean(y), prominence=prom,distance=dis)[1]['peak_heights']==A1)[0][0]
+                x2=np.where(find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[1]['peak_heights']==A2)[0][0]
+                x1 = find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[0][x1]
+                x2 = find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[0][x2]
+                
+                mu1 = x[x1]
+                mu2 = x[x2]
+                
+                #Using these values as the expected values for fitting
+                expected = (mu1,5,A1,mu2,5,A2)
+                
+                params, cov = curve_fit(DoubleGaussian, x[:-1], y[:],expected)
+                sigma=np.sqrt(np.diag(cov))
+                #print(expected)
+                print(params)
+                #Defining split as where the two gaussians join
+                split=(x_fit[find_peaks(-DoubleGaussian(x_fit,*params))[0][0]])
+                split_middle.append(split)
+                # Code to define split where equal std from both peaks
+                if params[0]<params[3]:
+                    peak1=params[0]
+                    sigma1=params[1]
+                    peak2=params[3]
+                    sigma2=params[4]
+                else:
+                    peak1=params[3]
+                    sigma1=params[4]
+                    peak2=params[0]
+                    sigma2=params[1]
+                n=(peak2-peak1)/(sigma1+sigma2)
+                print(n)
+                split1=peak1+n*sigma1
+                split_std.append(split1)
+                split2=peak2-n*sigma2
+                plt.title('Magnetopause interval')
+                plt.vlines(split1,ymin=0,ymax=y.max(),colors='r',ls='--',label='Split at same std')
+
+                plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--',label='Split at Intersection')
+                plt.xlim(-60,60)
+                plt.plot(x_fit, DoubleGaussian(x_fit, *params), color='red', lw=3, label='Double Gaussian Fit')
+                plt.ylabel('Number of Measurements')
+                plt.xlabel('$B_x$ in Magnetopause')
+                plt.legend()
+                plt.savefig(f'Images/Distro_mp_{i}.png')
+                plt.show()
+
+            elif len(find_peaks(y, height=0.005, prominence=0.001, distance=dis)[0]) >= 2:
+                print('BIMODAL RELAXED')
+                bimodal = True
+                #0.001
+                prom = 0.001
+                #0.005
+                h=0.005
+                #Finding height of two tallest peaks
+                A1,A2 = np.sort(find_peaks(y, height=h,prominence=prom, distance=dis)[1]['peak_heights'])[-2:]    
+                
+                #Finding corrresponding x position of the two tallest peaks
+                x1=np.where(find_peaks(y, height=h, prominence=prom,distance=dis)[1]['peak_heights']==A1)[0][0]
+                x2=np.where(find_peaks(y, height=h,prominence=prom, distance=dis)[1]['peak_heights']==A2)[0][0]
+                x1 = find_peaks(y, height=h,prominence=prom, distance=dis)[0][x1]
+                x2 = find_peaks(y, height=h,prominence=prom, distance=dis)[0][x2]
+                
+                mu1 = x[x1]
+                mu2 = x[x2]
+                
+                #Using these values as the expected values for fitting
+                expected = (mu1,5,A1,mu2,5,A2)
+                
+                params, cov = curve_fit(DoubleGaussian, x[:-1], y[:],expected)
+                sigma=np.sqrt(np.diag(cov))
+                #print(expected)
+                print(params)
+                print(i)
+                #Defining split as where the two gaussians join
+                if len(find_peaks(-DoubleGaussian(x_fit,*params))[0]) > 0 :
+                    split=(x_fit[find_peaks(-DoubleGaussian(x_fit,*params))[0][0]])
+                else:
+                    split=np.nan
+                split_middle.append(split)
+                # Code to define split where equal std from both peaks
+                if params[0]<params[3]:
+                    peak1=params[0]
+                    sigma1=params[1]
+                    peak2=params[3]
+                    sigma2=params[4]
+                else:
+                    peak1=params[3]
+                    sigma1=params[4]
+                    peak2=params[0]
+                    sigma2=params[1]
+                n=(peak2-peak1)/(sigma1+sigma2)
+                print(n)
+                split1=peak1+n*sigma1
+                split_std.append(split1)
+                split2=peak2-n*sigma2
+                plt.title('Magnetopause interval')
+                plt.vlines(split1,ymin=0,ymax=y.max(),colors='r',ls='--',label='Split at same std')
+
+                plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--',label='Split at Intersection')
+                plt.xlim(-60,60)
+                plt.plot(x_fit, DoubleGaussian(x_fit, *params), color='red', lw=3, label='Double Gaussian Fit')
+                plt.ylabel('Number of Measurements')
+                plt.xlabel('$B_x$ in Magnetopause')
+                plt.legend()
+                plt.savefig(f'Images/Distro_mp_{i}.png')
+                plt.show()
+                bimodal = True
+
             else:
-                peak1=params[3]
-                sigma1=params[4]
-                peak2=params[0]
-                sigma2=params[1]
-            n=(peak2-peak1)/(sigma1+sigma2)
-            print(n)
-            split1=peak1+n*sigma1
-            split2=peak2-n*sigma2
-            plt.vlines(split1,ymin=0,ymax=y.max()+20,colors='r',ls='--')
+                #bimodal = False
+                bimodal = True
+                
+                A = np.sort(find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[1]['peak_heights'])[-1:]    
+                
+                #Finding corrresponding x position of the two tallest peaks
+                x1=np.where(find_peaks(y, height=np.mean(y), prominence=prom,distance=dis)[1]['peak_heights']==A)[0][0]
+                x1 = find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[0][x1]            
+                mu1 = x[x1]
+                
+                #Using these values as the expected values for fitting
+                expected = (mu1,5,A1)
 
-            plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--')
-            plt.xlim(-60,60)
-            plt.plot(x_fit, DoubleGaussian(x_fit, *params), color='red', lw=3, label='Double Gaussian Fit')
-            plt.ylabel('Number of Measurements')
-            plt.xlabel('$B_x$ in Magnetopause')
-            plt.legend()
-            plt.savefig(f'In_MP_{i}.png')
-            plt.show()
+                print('NO BIMODAL')
+                params, cov = curve_fit(Gauss, x[:-1], y[:],expected)
+                plt.plot(x_fit, Gauss(x_fit, *params), color='red', lw=3, label='Gaussian Fit')
 
+                split = params[0]
+                split_middle.append(split)
+
+                plt.title('Magnetopause interval')
+                plt.hist(df_info['mag_x'].values,density = True,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+                plt.xlim(-60,60)
+                plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--',label='Split at Peak')
+                plt.ylabel('Number of Measurements')
+                plt.xlabel('$B_x$ in Magnetopause')
+                plt.legend()
+                plt.savefig(f'Images/Distro_mp_{i}.png')
+                plt.show()
+                
             parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
             Total_start = start_str
@@ -1389,8 +1564,149 @@ def mag_mp_hist(df,n=1,minute=5,combine = False,MS=False):
                 plt.legend()
                 #plt.savefig('After_MP.png')
                 #plt.show()
-            mag.mag_time_series(start_date=Total_start,end_date=Total_end,philpott=True, save=True,num = i)
-        
+            
+
+            df_info = mag.mag_time_series(start_date=Total_start,end_date=Total_end,plot=False)
+            #plotting time series with split colour coded
+            fig, (ax1,ax2,ax3,ax4) = plt.subplots(4,1,sharex=True,figsize=(12,8), dpi=300)
+            Bamp = df_info['magamp']
+            x = df_info['Time']
+            y = df_info['mag_x']
+            if df.loc[i,'Type'] == 'mp_in':
+                Sheath = np.ma.masked_where(x > df.loc[i,'start'], x)
+                Sphere = np.ma.masked_where(x < df.loc[i,'end'], x)
+                SheathAmp= np.ma.masked_where(x > df.loc[i,'start'], Bamp)
+                SphereAmp= np.ma.masked_where(x < df.loc[i,'end'], Bamp)
+                Pause = np.ma.masked_where((x > df.loc[i,'end']) | (x < df.loc[i,'start']), x)
+            else:
+                Sphere = np.ma.masked_where(x > df.loc[i,'start'], x)
+                Sheath = np.ma.masked_where(x < df.loc[i,'end'], x)
+                SphereAmp= np.ma.masked_where(x > df.loc[i,'start'], Bamp)
+                SheathAmp= np.ma.masked_where(x < df.loc[i,'end'], Bamp)
+                Pause = np.ma.masked_where((x > df.loc[i,'end']) | (x < df.loc[i,'start']), x)
+
+            ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+            ax1.plot(Sheath,y,c='b',label='Magnetosheath')
+            ax1.plot(Sphere,y,c='red',label='Magnetosphere')
+            ax1.plot(Pause,y,c='mediumpurple',label='Magnetopause')
+            ax1.set_ylabel('$B_x$ (nT)')
+            ax1.axhline(split,ls='--',c='r',lw=0.25)
+            ax1.axhline(ls='--',c='k')
+            ax1.axvline(df.loc[i,'start'],c='k')
+            ax1.axvline(df.loc[i,'end'],c='k')
+            ax1.legend()
+
+            if bimodal == True:
+                MagUpper = np.ma.masked_where(y < split, y)
+                MagLower = np.ma.masked_where(y > split, y)
+
+                ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                ax2.plot(x,MagUpper,c='b',label='')
+                ax2.plot(x,MagLower,c='r',label='')
+                ax2.plot(Sheath,y,c='b',label='Magnetosheath')
+                ax2.plot(Sphere,y,c='red',label='Magnetosphere')
+                #ax2.set_xlabel('Time')
+                ax2.set_ylabel('$B_x$ (nT)')
+                ax2.axhline(split,ls='--',c='r',lw=0.25)
+                ax2.axhline(ls='--',c='k')
+                ax2.axvline(df.loc[i,'start'],c='k')
+                ax2.axvline(df.loc[i,'end'],c='k')
+
+                Bamp = df_info['magamp']
+                BampUpper = np.ma.masked_where(y < split, Bamp)
+                BampLower = np.ma.masked_where(y > split, Bamp)
+
+                ax3.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                ax3.plot(x,BampUpper,c='b',label='')
+                ax3.plot(x,BampLower,c='r',label='')
+                ax3.plot(x,SheathAmp,c='b',label='')
+                ax3.plot(x,SphereAmp,c='r',label='')
+                #ax3.set_xlabel('Time')
+                ax3.set_ylabel('$|B|$ (nT)')
+                ax3.axhline(split,ls='--',c='r',lw=0.25)
+                ax3.axhline(ls='--',c='k')
+                ax3.axvline(df.loc[i,'start'],c='k')
+                ax3.axvline(df.loc[i,'end'],c='k')
+
+            else:
+                ax2.plot(x,y) 
+                ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                ax2.set_xlabel('Time')
+                ax2.set_ylabel('$B_x$ (nT)')
+                ax2.axhline(ls='--',c='k')
+                ax2.axvline(df.loc[i,'start'],c='k')
+                ax2.axvline(df.loc[i,'end'],c='k')
+                
+                ax3.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+                ax3.plot(x,y,label='')
+                ax3.set_xlabel('Time')
+                ax3.set_ylabel('$|B|$ (nT)')
+                ax3.axhline(ls='--',c='k')
+                ax3.axvline(df.loc[i,'start'],c='k')
+                ax3.axvline(df.loc[i,'end'],c='k')
+            
+
+            #Add fourth panel with RMS
+            time_int = int(time_win/2)
+
+            time_avg = x[time_int:-time_int]
+            mag_avg = Bamp[time_int:-time_int]
+            b_avg=np.array([])
+            if np.size(x)>int(time_int*2):
+                for p in np.round(np.linspace(time_int,np.size(x)-time_int,num=np.size(x)-int(time_int*2))):
+                    gd=[p-time_int,p+time_int]
+                    ba=Bamp[int(gd[0]):int(gd[1])]
+                    b_avg=np.append(b_avg,np.mean(ba))
+                mag_test=Bamp[time_int:-time_int]
+                print(len(Bamp))
+                print(np.shape(mag_test),np.shape(b_avg))
+                rms_B=np.sqrt((mag_test-b_avg)**2)
+            
+            date = df.loc[i,'start']
+            date = date.strftime("%Y-%m-%d")
+            ax4.set_xlabel(f'Time \n Date: {date}')
+
+            if df.loc[i,'Type'] == 'mp_in':
+                SheathRMS= np.ma.masked_where(x[time_int:-time_int] > df.loc[i,'start'], rms_B)
+                SphereRMS= np.ma.masked_where(x[time_int:-time_int] < df.loc[i,'end'], rms_B)
+                
+            else:
+                SphereRMS= np.ma.masked_where(x[time_int:-time_int] > df.loc[i,'start'], rms_B)
+                SheathRMS= np.ma.masked_where(x[time_int:-time_int] < df.loc[i,'end'], rms_B)
+                
+            RMSUpper = np.ma.masked_where(y[time_int:-time_int] < split, rms_B)
+            RMSLower = np.ma.masked_where(y[time_int:-time_int] > split, rms_B)
+
+            #ax4.plot(time_avg,rms_B, c='gray',lw='0.75')
+            ax4.plot(time_avg,RMSUpper,c='b',label='')
+            ax4.plot(time_avg,RMSLower,c='r',label='')
+            ax4.plot(time_avg,SheathRMS,c='b',label='')
+            ax4.plot(time_avg,SphereRMS,c='r',label='')
+            ax4.set_ylabel(f'RMS of $|B|$ \n averaging over {time_win} seconds')
+            ax4.axvline(df.loc[i,'start'],c='k')
+            ax4.axvline(df.loc[i,'end'],c='k')
+
+
+            fig.savefig(f'Images/colour_coded_mp_{i}.png') 
+            fig.show()
+            
+
+            if timeseries == True:
+                #print(Total_start,Total_end)
+                axt, figt = mag.mag_time_series(start_date=Total_start,end_date=Total_end,philpott=True, save=True,num = i)
+                figt.savefig(f'Images/time_series_{i}.png')
+
+        if splitDistro==True:
+            plt.close()
+            bins=20
+            plt.hist(split_middle,color='k',bins=bins,label='Intersection Split',histtype='step')
+            plt.hist(split_std,color='r',bins=bins,label='Std Split',histtype='step')
+            plt.title('Distribution of Splits')
+            plt.legend()
+            plt.xlabel('$B_x$ in Magnetopause')
+            plt.ylabel('Measurements')
+
+            plt.show()
     else:
         MP = []
         MSheath_in=[]
@@ -1436,27 +1752,50 @@ def mag_mp_hist(df,n=1,minute=5,combine = False,MS=False):
         #print(df_info)
 
 def spatial_box_plot(df_crossing,orient='x'):
+    ''' Plot box plots of spatial position versus crossing duration
+    Crossings duration split into 4 equally sized bins
+    '''
     df=df_crossing
     df['Interval'] = (df.end-df.start).dt.total_seconds()
-    df[f'Avg_{orient}'] = (df[f'start_{orient}_msm']+df[f'end_{orient}_msm'])/2
-    
+
     quant25=df['Interval'].quantile(0.25)
     quant50=df['Interval'].quantile(0.5)
     quant75=df['Interval'].quantile(0.75)
 
-    bin1=df[f'Avg_{orient}'][df['Interval']<=quant25].values
-    bin2=df[f'Avg_{orient}'][(df['Interval']>quant25)&((df['Interval']<=quant50))].values
-    bin3=df[f'Avg_{orient}'][(df['Interval']>quant50)&((df['Interval']<=quant75))].values
-    bin4=df[f'Avg_{orient}'][(df['Interval']>quant75)].values
+    if orient == 'all':
+        df['Avg_x'] = (df['start_x_msm']+df['end_x_msm'])/2
+        df['Avg_y'] = (df['start_y_msm']+df['end_y_msm'])/2
+        df['Avg_z'] = (df['start_z_msm']+df['end_z_msm'])/2
+        r_all = np.sqrt(df.Avg_x.to_numpy()**2 + df.Avg_y.to_numpy()**2 + \
+                        df.Avg_z.to_numpy()**2)
+        df['All'] = r_all
+        bin1=df['All'][df['Interval']<=quant25].values
+        bin2=df['All'][(df['Interval']>quant25)&((df['Interval']<=quant50))].values
+        bin3=df['All'][(df['Interval']>quant50)&((df['Interval']<=quant75))].values
+        bin4=df['All'][(df['Interval']>quant75)].values
+        plt.ylabel('Position in $\sqrt{x^2+y^2+z^2}$_MSM ($R_M$)')
 
-    labels=[ f'0 - {quant25} s', f' {quant25} - {quant50} s',f'{quant50} - {quant75} s',f'> {quant75} s']
+    else:
+        df[f'Avg_{orient}'] = (df[f'start_{orient}_msm']+df[f'end_{orient}_msm'])/2
+        bin1=df[f'Avg_{orient}'][df['Interval']<=quant25].values
+        bin2=df[f'Avg_{orient}'][(df['Interval']>quant25)&((df['Interval']<=quant50))].values
+        bin3=df[f'Avg_{orient}'][(df['Interval']>quant50)&((df['Interval']<=quant75))].values
+        bin4=df[f'Avg_{orient}'][(df['Interval']>quant75)].values
+        plt.ylabel(f'Position in {orient}_MSM ($R_M$)')
+
+    labels=[ f'0 - {quant25} s \n $n$={len(bin1)}', f' {quant25} - {quant50} s \n $n$={len(bin2)}',f'{quant50} - {quant75} s \n $n$={len(bin3)}',f'> {quant75} s \n $n$={len(bin4)}']
     total =[bin1,bin2,bin3,bin4]
+    
     plt.boxplot(total,labels=labels,whis=(0,100))
-    #plt.violinplot(total)#,labels=labels,whis=(0,100))
+    # plt.violinplot(total)
+    # plt.xticks([y + 1 for y in range(len(total))],
+    #               labels=labels)
     print(len(bin1),len(bin2),len(bin3),len(bin4))
-    plt.ylabel(f'Position in {orient}_msm')
+    plt.ylim(-8,8)
     plt.xlabel('Duration of Magnetopause Crossing')
-
+    plt.savefig(f'box_plot_{orient}.png')
+    # plt.savefig(f'Violin_plot_{orient}.png')
+    plt.show()
 
 # def compare_boundaries(df1, df2, dt=30):
 
