@@ -755,6 +755,7 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, s
             axs, fig= plot_mag_time_series(df, start_date_obj, end_date_obj, sun, philpott)
             return axs, fig
     if save == True:
-        plt.savefig(f'time_series_{num}.png')
+        print(save)
+        fig.savefig(f'Images/time_series_{num}.png')
     plt.show()
     return df

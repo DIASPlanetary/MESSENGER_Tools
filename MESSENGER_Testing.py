@@ -25,30 +25,42 @@ Created on Tue May 28 10:33:16 2024
 Load list if already saved in pickle
 '''
 
+
+from scipy.signal import find_peaks
+import tqdm
+import MESSENGER_Boundary_ID as mag
+import load_messenger_mag as load_messenger_mag
+import pickle
+import matplotlib.dates as mdates
+import numpy as np
+import pandas as pd
+import os
 import matplotlib.pyplot as plt
 import ephem
 import datetime
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-import pickle
-import load_messenger_mag as load_messenger_mag
-import MESSENGER_Boundary_ID as mag
-import tqdm
-from scipy.signal import find_peaks
 
-#Function to load in crossing lists and add orbit informatiom
+plt.rcParams['axes.prop_cycle'] = plt.cycler(color=['#377eb8', '#ff7f00', '#4daf4a',
+                                                    '#f781bf', '#a65628', '#984ea3',
+                                                    '#999999', '#e41a1c', '#dede00'])
+
+# Function to load in crossing lists and add orbit informatiom
 def start():
     '''Returns df_all, df_p, df_sun'''
     with open('df_p.pickle', 'rb') as f:
         df_p = pickle.load(f)
     with open('df_s.p', 'rb') as f:
         df_sun = pickle.load(f)
-    df_all = read_in_all()
-    df_p = orbit(df_all,df_p)
-    df_sun = orbit(df_all,df_sun)
+    # df_all = read_in_all()
+    df_all = pd.read_pickle("df_all.pkl")
+    df_p = orbit(df_all, df_p)
+    df_sun = orbit(df_all, df_sun)
     return df_all, df_p, df_sun
+
+
+def info():
+    df_info = pd.read_pickle("df_info_all.pkl")
+    return df_info
+
 
 philpott_file = '/home/adam/Desktop/DIAS/MESSENGER/MESSENGER_Boundary_Testing/jgra55678-sup-0002-table_si-s01.csv'
 
@@ -966,8 +978,10 @@ def compare_lists(df, df_p, plot=False):
     return df_part_bs, df_part_mp
 
 # Check where crossings have no overlap looking at partner list created above
+
+
 def crossing_disagree(df, t):
-    
+
     # df is partnered list, t is max time diff between crossing pair in seconds
     x = df.index[~(((df['start'] >= df['startP'])
                     & (df['start'] <= df['endP'])) | ((df['end'] >= df['startP'])
@@ -1016,6 +1030,7 @@ def orbits_without_bs(df):
 
     return df_no_bs
 
+
 def crossing_duration(df, df_sun, seperate=False):
     '''Plotting histograms of MP crossing intervals
     Inputs
@@ -1051,7 +1066,8 @@ def crossing_duration(df, df_sun, seperate=False):
         df_sun_mp = df_sun[(df_sun.Type == 'mp_in') |
                            (df_sun.Type == 'mp_out')]
         ymax = df_sun.Interval.max()
-        plt.hist(df_mp.Interval, bins, alpha=0.5, label=f'p_mp: n = {len(df_mp)}', color='k', histtype='step')
+        plt.hist(df_mp.Interval, bins, alpha=0.5, label=f'p_mp: n = {
+                 len(df_mp)}', color='k', histtype='step')
         plt.hist(df_sun_mp.Interval, bins, alpha=0.5,
                  label=f'sun_mp: n = {len(df_sun_mp)}', color='red')
         mean_p = df_mp.Interval.mean()
@@ -1067,7 +1083,7 @@ def crossing_duration(df, df_sun, seperate=False):
         return df_mp, df_sun_mp
 
 
-# Returns an array of number of crossings per orbit and any 
+# Returns an array of number of crossings per orbit and any
 # orbits with crossings !=4. Need to run df through orbits first
 
 #!!! Not fully working, come back to this!!!
@@ -1083,7 +1099,7 @@ def orbit_crossings(df):
     # print(orbit_counts)
     NumCrossings = []
     counter = 0
-    for i in range(1,len(df.index)):
+    for i in range(1, len(df.index)):
         if df.Orbit[i] != df.Orbit[i-1]:
             NumCrossings.append(counter)
             counter = 0
@@ -1096,38 +1112,43 @@ def orbit_crossings(df):
     print(len(weird_crossings[0]))
     return NumCrossings, weird_crossings
 
-def time_in_sheath(df,df_sun):
+
+def time_in_sheath(df, df_sun):
     '''Histogram of time in sheath durations: run df through orbits first
     Inputs
     df -- Philpott crossing dataframe
     df_sun -- Sun crossing dataframe
-    ''' 
-    #mp_out(end)-bs_out(start)
-    #bs_in(end)-mp_in(start)
+    '''
+    # mp_out(end)-bs_out(start)
+    # bs_in(end)-mp_in(start)
 
     def sheath(df):
-        Dur_out=[]
+        Dur_out = []
         Dur_in = []
         for i in df.index[:-1]:
             if df.Type[i] == 'mp_out' and df.Type[i+1] == 'bs_out':
                 Dur_out.append((df.start[i+1]-df.end[i]).total_seconds())
             elif df.Type[i] == 'bs_in' and df.Type[i+1] == 'mp_in':
                 Dur_in.append((df.start[i+1]-df.end[i]).total_seconds())
-        return Dur_in,Dur_out
+        return Dur_in, Dur_out
     Dur_in_p, Dur_out_p = sheath(df)
     Dur_in_s, Dur_out_s = sheath(df_sun)
     bins = 100
-    plt.hist(Dur_in_p, bins=bins, alpha=0.5,label='Sheath_in_p',color='k',histtype='step')
-    plt.hist(Dur_out_p, bins=bins,alpha=0.5,label='Sheath_out_p',color='b',histtype='step')
-    plt.hist(Dur_in_s, bins=bins, alpha=0.5,label='Sheath_in_s',color='orange',histtype='step')
-    plt.hist(Dur_out_s, bins=bins,alpha=0.5,label='Sheath_out_s',color='darkred',histtype='step')
+    plt.hist(Dur_in_p, bins=bins, alpha=0.5,
+             label='Sheath_in_p', color='k', histtype='step')
+    plt.hist(Dur_out_p, bins=bins, alpha=0.5,
+             label='Sheath_out_p', color='b', histtype='step')
+    plt.hist(Dur_in_s, bins=bins, alpha=0.5, label='Sheath_in_s',
+             color='orange', histtype='step')
+    plt.hist(Dur_out_s, bins=bins, alpha=0.5, label='Sheath_out_s',
+             color='darkred', histtype='step')
     plt.legend()
-    #plt.yscale('log')
+    # plt.yscale('log')
     plt.xlabel('Duration of time in sheath (s)')
-    return 
+    return
 
 
-def save_largest(df,sun = False, philpott = False):
+def save_largest(df, sun=False, philpott=False):
     '''
     Save the timeseries for the 10 longest crossings
     Inputs
@@ -1141,24 +1162,28 @@ def save_largest(df,sun = False, philpott = False):
     end_time = []
     for i in df.start:
         i = i-minute
-        parsed_datetime = datetime.datetime.strptime(str(i), "%Y-%m-%d %H:%M:%S")
+        parsed_datetime = datetime.datetime.strptime(
+            str(i), "%Y-%m-%d %H:%M:%S")
         output_datetime_str = parsed_datetime.strftime("%Y-%m-%d-%H-%M-%S")
         start_time.append(str(output_datetime_str))
     for i in df.end:
         i = i+minute
-        parsed_datetime = datetime.datetime.strptime(str(i), "%Y-%m-%d %H:%M:%S")
+        parsed_datetime = datetime.datetime.strptime(
+            str(i), "%Y-%m-%d %H:%M:%S")
         output_datetime_str = parsed_datetime.strftime("%Y-%m-%d-%H-%M-%S")
         end_time.append(str(output_datetime_str))
-    for i in range(0,10):
+    for i in range(0, 10):
         if sun == True:
-            mag.mag_time_series(start_date=start_time[i],end_date=end_time[i],sun=True, save = True, num = i)
+            mag.mag_time_series(
+                start_date=start_time[i], end_date=end_time[i], sun=True, save=True, num=i)
         if philpott == True:
-            mag.mag_time_series(start_date=start_time[i],end_date=end_time[i],philpott=True, save = True, num = i)
-        
+            mag.mag_time_series(
+                start_date=start_time[i], end_date=end_time[i], philpott=True, save=True, num=i)
 
 
-# combining all 60 second resolution data into one .csv file with 6 min resolution to find orbits  
-import os
+# combining all 60 second resolution data into one .csv file with 6 min resolution to find orbits
+
+
 def find_tab_files(root_dir):
     """Recursively find all .TAB files in root_dir and its subdirectories."""
     tab_files = []
@@ -1166,23 +1191,25 @@ def find_tab_files(root_dir):
         for file in files:
             if file.endswith('60_V08.TAB'):
                 tab_files.append(os.path.join(path, file))
+    tab_files = np.sort(tab_files)
     return tab_files
+
 
 def combine_tab_files(tab_files, output_file):
     """Combine multiple .TAB files into one CSV file using np.genfromtxt."""
     combined_data = []
-    
+
     for file in tab_files:
         data = np.genfromtxt(file, skip_header=0)
-        x = np.array(data)[::10]
-        combined_data.append(x)
-    
+        combined_data.append(data)
+
     # Concatenate all the data arrays
     combined_data = np.concatenate(combined_data)
-    
+    # combined_data=np.sort(combined_data)
     # Save to a new CSV file
     np.savetxt(output_file, combined_data, delimiter=',')
-    
+
+
 def read_in_all():
     '''Read in all.csv which is 10 minute resolution ephemeris data for MESSENGER
     '''
@@ -1190,61 +1217,69 @@ def read_in_all():
 
     # Read the CSV file into a DataFrame
     df = pd.read_csv('all.csv', header=None)
-    df.columns = ['year', 'day_of_year', 'hour', 'second', 'col5', 'col6', 'col7', 'ephx', 'ephy', 'ephz','col11','col12','col13','col14','col15','col16']
+    df.columns = ['year', 'day_of_year', 'hour', 'minute', 'second', 'col6', 'col7',
+                  'eph_x', 'eph_y', 'eph_z', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16']
     # Combine the time components into a single datetime column
+
     def combine_time_components(row):
         year = int(row['year'])
         day_of_year = int(row['day_of_year'])
         hour = int(row['hour'])
+        minute = int(row['minute'])
         second = float(row['second'])
-        
+
         # Combine the time components into a datetime object
-        date = datetime(year, 1, 1) + timedelta(days=day_of_year - 1, hours=hour, seconds=second)
+        date = datetime(year, 1, 1) + timedelta(days=day_of_year -
+                                                1, hours=hour, minutes=minute, seconds=second)
         return date
 
-    # Apply the function to each row to create the 'time' column
-    df['time'] = df.apply(combine_time_components, axis=1)
+    # Apply the function to each row to create the 'Time' column
+    df['Time'] = df.apply(combine_time_components, axis=1)
 
     # Select the relevant columns
-    df = df[['time', 'ephx', 'ephy', 'ephz']]
-    date_string = df['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
-    ephx = df['ephx']
-    ephy = df['ephy']
+    df = df[['Time', 'eph_x', 'eph_y', 'eph_z']]
+    date_string = df['Time'].dt.strftime('%Y-%m-%d %H:%M:%S')
+    ephx = df['eph_x']
+    ephy = df['eph_y']
     msm_ephx = []
     msm_ephy = []
-    for i in tqdm.tqdm(range(0,len(date_string))):
-        phi=load_messenger_mag.get_aberration_angle(date_string[i])
+    for i in tqdm.tqdm(range(0, len(date_string))):
+        phi = load_messenger_mag.get_aberration_angle(date_string[i])
         new_ephx = ephx[i]*np.cos(phi)-ephy[i]*np.sin(phi)
         new_ephy = ephx[i]*np.sin(phi)+ephy[i]*np.cos(phi)
         msm_ephx.append(new_ephx)
         msm_ephy.append(new_ephy)
-    
-    df['ephem_x'] = msm_ephx
-    df['ephem_y'] = msm_ephy
+
+    df['eph_x'] = msm_ephx
+    df['eph_y'] = msm_ephy
     # Display the resulting DataFrame
     return df
 
-def orbit(df_all,df_crossing):
+
+def orbit(df_all, df_crossing):
     ''' Adds orbit number to crossing list dataframes
     Inputs
     df_all -- dataframe containing ephemeris
- data at a 10 minute resolution obtained from "df_all=read_in_all()"
+            data at a 10 minute resolution obtained from "df_all=read_in_all()"
     df_crossing -- dataframe containing crossing data
     '''
 
-    r_all = np.sqrt(df_all.ephx.to_numpy()**2 + df_all.ephy.to_numpy()**2 + \
-                        df_all.ephz.to_numpy()**2)
-    
-    peaks=find_peaks(r_all)
+    r_all = np.sqrt(df_all.eph_x.to_numpy()**2 + df_all.eph_y.to_numpy()**2 +
+                    df_all.eph_z.to_numpy()**2)
+
+    peaks = find_peaks(-r_all, distance=36)
     orbits = 0
     df_crossing['Orbit'] = len(peaks[0]-1)
     for p in tqdm.tqdm(range(len(peaks[0])-1)):
-        orbit_range = [peaks[0][p],peaks[0][p+1]]
-        time_range = [df_all.time.iloc[orbit_range[0]],df_all.time.iloc[orbit_range[1]]]
-        df_crossing.loc[(df_crossing['start'] <= time_range[1]) & (df_crossing['start'] >= time_range[0]), 'Orbit'] = int(orbits)
-        orbits+=1
+        orbit_range = [peaks[0][p], peaks[0][p+1]]
+        time_range = [df_all.Time.iloc[orbit_range[0]],
+                      df_all.Time.iloc[orbit_range[1]]]
+        df_crossing.loc[(df_crossing['start'] <= time_range[1]) & (
+            df_crossing['start'] >= time_range[0]), 'Orbit'] = int(orbits)
+        orbits += 1
     print(df_crossing)
     return df_crossing
+
 
 def sign_change_count(df):
     '''Function to count the number of sign changes in a df column.
@@ -1259,11 +1294,12 @@ def sign_change_count(df):
         else:
             sign = 1
         if sign == -prev:
-            changes+=1
+            changes += 1
             prev = sign
     return int(changes)
 
-def analyse_mp_crossings_sheath(df,n=10,largest = True):
+
+def analyse_mp_crossings_sheath(df, n=10, largest=True):
     ''' Function to add mean, standard deviation, and number of rotations in the
     magentosheath to the crossing dataframe
     Input
@@ -1274,58 +1310,66 @@ def analyse_mp_crossings_sheath(df,n=10,largest = True):
     df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
     minutes = datetime.timedelta(minutes=10)
     df['Interval'] = (df.end-df.start).dt.total_seconds()
-    
+
     if largest == True:
         df = df.nlargest(n, 'Interval')
     else:
         df = df.nsmallest(n, 'Interval')
 
-    def add_info(df,i,df_info,orient):
-        sign_change=sign_change_count(df_info[f'mag_{orient}'])
-        df.loc[i,f'rotations_{orient}_10'] = (sign_change)
-        df.loc[i,f'avg_B{orient}_10'] = (df_info[f'mag_{orient}'].mean())
-        df.loc[i,f'std_B{orient}_10'] = (df_info[f'mag_{orient}'].std())
+    def add_info(df, i, df_info, orient):
+        sign_change = sign_change_count(df_info[f'mag_{orient}'])
+        df.loc[i, f'rotations_{orient}_10'] = (sign_change)
+        df.loc[i, f'avg_B{orient}_10'] = (df_info[f'mag_{orient}'].mean())
+        df.loc[i, f'std_B{orient}_10'] = (df_info[f'mag_{orient}'].std())
         half = int(len(df_info)/2)
-        if df.loc[i,'Type'] == 'mp_in':
+        if df.loc[i, 'Type'] == 'mp_in':
             df_info_5 = df_info.iloc[half:]
         else:
-            df_info_5 = df_info.iloc[:-half]   
-        sign_change_5=sign_change_count(df_info_5[f'mag_{orient}'])
-        df.loc[i,f'rotations_{orient}_5'] = (sign_change_5)
-        df.loc[i,f'avg_B{orient}_5'] = (df_info_5[f'mag_{orient}'].mean())
-        df.loc[i,f'std_B{orient}_5'] = (df_info_5[f'mag_{orient}'].std())
+            df_info_5 = df_info.iloc[:-half]
+        sign_change_5 = sign_change_count(df_info_5[f'mag_{orient}'])
+        df.loc[i, f'rotations_{orient}_5'] = (sign_change_5)
+        df.loc[i, f'avg_B{orient}_5'] = (df_info_5[f'mag_{orient}'].mean())
+        df.loc[i, f'std_B{orient}_5'] = (df_info_5[f'mag_{orient}'].std())
         if orient == 'z':
-            df.loc[i,f'avg_BAmp_10'] = (df_info[f'magamp'].mean())
-            df.loc[i,f'avg_BAmp_5'] = (df_info_5[f'magamp'].mean())
+            df.loc[i, f'avg_BAmp_10'] = (df_info[f'magamp'].mean())
+            df.loc[i, f'avg_BAmp_5'] = (df_info_5[f'magamp'].mean())
         return df
 
     for i in df.index:
-        if df.loc[i,'Type'] == 'mp_in':
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
+        if df.loc[i, 'Type'] == 'mp_in':
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'start']-minutes), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'start']), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
-            #Add to new column
-            df=add_info(df,i,df_info,'x')
-            df=add_info(df,i,df_info,'y')
-            df=add_info(df,i,df_info,'z')
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
+            # Add to new column
+            df = add_info(df, i, df_info, 'x')
+            df = add_info(df, i, df_info, 'y')
+            df = add_info(df, i, df_info, 'z')
 
-        if df.loc[i,'Type'] == 'mp_out':
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+        if df.loc[i, 'Type'] == 'mp_out':
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'end']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']+minutes), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'end']+minutes), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
-            #Add to new column
-            df=add_info(df,i,df_info,'x')
-            df=add_info(df,i,df_info,'y')
-            df=add_info(df,i,df_info,'z')
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
+            # Add to new column
+            df = add_info(df, i, df_info, 'x')
+            df = add_info(df, i, df_info, 'y')
+            df = add_info(df, i, df_info, 'z')
 
     return df
 
-#Histograms of Bx in MP, MSheath, and MSphere 
-def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseries=True, splitDistro=False, dayside=False):
+# Histograms of Bx in MP, MSheath, and MSphere
+
+
+def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timeseries=True, splitDistro=False, dayside=False, RMS='total'):
     '''Plot histograms of B_x in Magnetopause, Magnetosheath and Magnetosphere
     Fits a double Gaussian to identify crossing location, Magnetosheath and Magnetosphere
     during crossing interval
@@ -1342,89 +1386,104 @@ def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseri
     '''
     from scipy.optimize import curve_fit
 
-    def Gauss (x,mu,Sigma,A):
+    def Gauss(x, mu, Sigma, A):
         return A*np.exp(-(x-mu)**2/(2*Sigma**2))
 
     def DoubleGaussian(x, mu1, Sigma1, A1, mu2, Sigma2, A2):
-        return Gauss(x,mu1,Sigma1,A1)+Gauss(x,mu2,Sigma2,A2)
-    
+        return Gauss(x, mu1, Sigma1, A1)+Gauss(x, mu2, Sigma2, A2)
+
     df = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
     df['Interval'] = (df.end-df.start).dt.total_seconds()
-    
+
     if dayside == True:
         df = df[(df['start_x_msm'] > 0) & (df['end_x_msm'] > 0)]
     df = df.nlargest(n, 'Interval')
     minutes = datetime.timedelta(minutes=minute)
     if combine == False:
-        split_middle=[]
-        split_std=[]
+        split_middle = []
+        split_std = []
         for i in df.index:
             # if i != 11317:
             #     continue
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'start']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'end']), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
+            # bins= 30
             bins = int(np.sqrt(len(df_info['mag_x'])))
             if bins <= 0:
                 bins = 50
-            
-            x_fit = np.linspace(df_info['mag_x'].min(), df_info['mag_x'].max(), 1000)
-            y,x,_ = plt.hist(df_info['mag_x'].values,density = True,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
 
-            #y= y-np.mean(y)+10
-            # Peaks must be 5 bins away from eachother to count            
+            x_fit = np.linspace(
+                df_info['mag_x'].min(), df_info['mag_x'].max(), 1000)
+            y, x, _ = plt.hist(df_info['mag_x'].values, density=True, bins=bins, label=f'Orbit = {
+                               df.loc[i, 'Orbit']}')
+
+            # y= y-np.mean(y)+10
+            # Peaks must be 5 bins away from eachother to count
             dis = 5*((df_info['mag_x'].max() - df_info['mag_x'].min())/bins)
             prom = 0.01
 
-            if len(find_peaks(y, height=np.mean(y), prominence=prom,distance=dis)[0]) >= 2:
+            if len(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[0]) >= 2:
                 print('BIMODAL')
                 bimodal = True
-                #Finding height of two tallest peaks
-                A1,A2 = np.sort(find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[1]['peak_heights'])[-2:]    
-                
-                #Finding corrresponding x position of the two tallest peaks
-                x1=np.where(find_peaks(y, height=np.mean(y), prominence=prom,distance=dis)[1]['peak_heights']==A1)[0][0]
-                x2=np.where(find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[1]['peak_heights']==A2)[0][0]
-                x1 = find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[0][x1]
-                x2 = find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[0][x2]
-                
+                # Finding height of two tallest peaks
+                A1, A2 = np.sort(find_peaks(y, height=np.mean(
+                    y), prominence=prom, distance=dis)[1]['peak_heights'])[-2:]
+
+                # Finding corrresponding x position of the two tallest peaks
+                x1 = np.where(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[
+                              1]['peak_heights'] == A1)[0][0]
+                x2 = np.where(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[
+                              1]['peak_heights'] == A2)[0][0]
+                x1 = find_peaks(y, height=np.mean(
+                    y), prominence=prom, distance=dis)[0][x1]
+                x2 = find_peaks(y, height=np.mean(
+                    y), prominence=prom, distance=dis)[0][x2]
+
                 mu1 = x[x1]
                 mu2 = x[x2]
-                
-                #Using these values as the expected values for fitting
-                expected = (mu1,5,A1,mu2,5,A2)
-                
-                params, cov = curve_fit(DoubleGaussian, x[:-1], y[:],expected)
-                sigma=np.sqrt(np.diag(cov))
-                #print(expected)
+
+                # Using these values as the expected values for fitting
+                expected = (mu1, 5, A1, mu2, 5, A2)
+
+                params, cov = curve_fit(DoubleGaussian, x[:-1], y[:], expected)
+                sigma = np.sqrt(np.diag(cov))
+                # print(expected)
                 print(params)
-                #Defining split as where the two gaussians join
-                split=(x_fit[find_peaks(-DoubleGaussian(x_fit,*params))[0][0]])
+                # Defining split as where the two gaussians join
+                split = (
+                    x_fit[find_peaks(-DoubleGaussian(x_fit, *params))[0][0]])
                 split_middle.append(split)
                 # Code to define split where equal std from both peaks
-                if params[0]<params[3]:
-                    peak1=params[0]
-                    sigma1=params[1]
-                    peak2=params[3]
-                    sigma2=params[4]
+                if params[0] < params[3]:
+                    peak1 = params[0]
+                    sigma1 = params[1]
+                    peak2 = params[3]
+                    sigma2 = params[4]
                 else:
-                    peak1=params[3]
-                    sigma1=params[4]
-                    peak2=params[0]
-                    sigma2=params[1]
-                n=(peak2-peak1)/(sigma1+sigma2)
+                    peak1 = params[3]
+                    sigma1 = params[4]
+                    peak2 = params[0]
+                    sigma2 = params[1]
+                n = (peak2-peak1)/(sigma1+sigma2)
                 print(n)
-                split1=peak1+n*sigma1
+                split1 = peak1+n*sigma1
                 split_std.append(split1)
-                split2=peak2-n*sigma2
+                split2 = peak2-n*sigma2
                 plt.title('Magnetopause interval')
-                plt.vlines(split1,ymin=0,ymax=y.max(),colors='r',ls='--',label='Split at same std')
+                plt.vlines(split1, ymin=0, ymax=y.max(), colors='r',
+                           ls='--', label='Split at same std')
 
-                plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--',label='Split at Intersection')
-                plt.xlim(-60,60)
-                plt.plot(x_fit, DoubleGaussian(x_fit, *params), color='red', lw=3, label='Double Gaussian Fit')
+                plt.vlines(split, ymin=0, ymax=y.max(), colors='k',
+                           ls='--', label='Split at Intersection')
+                plt.xlim(-60, 60)
+                plt.plot(x_fit, DoubleGaussian(x_fit, *params),
+                         color='red', lw=3, label='Double Gaussian Fit')
                 plt.ylabel('Number of Measurements')
                 plt.xlabel('$B_x$ in Magnetopause')
                 plt.legend()
@@ -1434,58 +1493,67 @@ def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseri
             elif len(find_peaks(y, height=0.005, prominence=0.001, distance=dis)[0]) >= 2:
                 print('BIMODAL RELAXED')
                 bimodal = True
-                #0.001
+                # 0.001
                 prom = 0.001
-                #0.005
-                h=0.005
-                #Finding height of two tallest peaks
-                A1,A2 = np.sort(find_peaks(y, height=h,prominence=prom, distance=dis)[1]['peak_heights'])[-2:]    
-                
-                #Finding corrresponding x position of the two tallest peaks
-                x1=np.where(find_peaks(y, height=h, prominence=prom,distance=dis)[1]['peak_heights']==A1)[0][0]
-                x2=np.where(find_peaks(y, height=h,prominence=prom, distance=dis)[1]['peak_heights']==A2)[0][0]
-                x1 = find_peaks(y, height=h,prominence=prom, distance=dis)[0][x1]
-                x2 = find_peaks(y, height=h,prominence=prom, distance=dis)[0][x2]
-                
+                # 0.005
+                h = 0.005
+                # Finding height of two tallest peaks
+                A1, A2 = np.sort(find_peaks(y, height=h, prominence=prom, distance=dis)[
+                                 1]['peak_heights'])[-2:]
+
+                # Finding corrresponding x position of the two tallest peaks
+                x1 = np.where(find_peaks(y, height=h, prominence=prom, distance=dis)[
+                              1]['peak_heights'] == A1)[0][0]
+                x2 = np.where(find_peaks(y, height=h, prominence=prom, distance=dis)[
+                              1]['peak_heights'] == A2)[0][0]
+                x1 = find_peaks(y, height=h, prominence=prom,
+                                distance=dis)[0][x1]
+                x2 = find_peaks(y, height=h, prominence=prom,
+                                distance=dis)[0][x2]
+
                 mu1 = x[x1]
                 mu2 = x[x2]
-                
-                #Using these values as the expected values for fitting
-                expected = (mu1,5,A1,mu2,5,A2)
-                
-                params, cov = curve_fit(DoubleGaussian, x[:-1], y[:],expected)
-                sigma=np.sqrt(np.diag(cov))
-                #print(expected)
+
+                # Using these values as the expected values for fitting
+                expected = (mu1, 5, A1, mu2, 5, A2)
+
+                params, cov = curve_fit(DoubleGaussian, x[:-1], y[:], expected)
+                sigma = np.sqrt(np.diag(cov))
+                # print(expected)
                 print(params)
                 print(i)
-                #Defining split as where the two gaussians join
-                if len(find_peaks(-DoubleGaussian(x_fit,*params))[0]) > 0 :
-                    split=(x_fit[find_peaks(-DoubleGaussian(x_fit,*params))[0][0]])
+                # Defining split as where the two gaussians join
+                if len(find_peaks(-DoubleGaussian(x_fit, *params))[0]) > 0:
+                    split = (
+                        x_fit[find_peaks(-DoubleGaussian(x_fit, *params))[0][0]])
                 else:
-                    split=np.nan
+                    split = np.nan
                 split_middle.append(split)
                 # Code to define split where equal std from both peaks
-                if params[0]<params[3]:
-                    peak1=params[0]
-                    sigma1=params[1]
-                    peak2=params[3]
-                    sigma2=params[4]
+                if params[0] < params[3]:
+                    peak1 = params[0]
+                    sigma1 = params[1]
+                    peak2 = params[3]
+                    sigma2 = params[4]
                 else:
-                    peak1=params[3]
-                    sigma1=params[4]
-                    peak2=params[0]
-                    sigma2=params[1]
-                n=(peak2-peak1)/(sigma1+sigma2)
+                    peak1 = params[3]
+                    sigma1 = params[4]
+                    peak2 = params[0]
+                    sigma2 = params[1]
+                n = (peak2-peak1)/(sigma1+sigma2)
                 print(n)
-                split1=peak1+n*sigma1
+                split1 = peak1+n*sigma1
                 split_std.append(split1)
-                split2=peak2-n*sigma2
+                split2 = peak2-n*sigma2
                 plt.title('Magnetopause interval')
-                plt.vlines(split1,ymin=0,ymax=y.max(),colors='r',ls='--',label='Split at same std')
+                plt.vlines(split1, ymin=0, ymax=y.max(), colors='r',
+                           ls='--', label='Split at same std')
 
-                plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--',label='Split at Intersection')
-                plt.xlim(-60,60)
-                plt.plot(x_fit, DoubleGaussian(x_fit, *params), color='red', lw=3, label='Double Gaussian Fit')
+                plt.vlines(split, ymin=0, ymax=y.max(), colors='k',
+                           ls='--', label='Split at Intersection')
+                plt.xlim(-60, 60)
+                plt.plot(x_fit, DoubleGaussian(x_fit, *params),
+                         color='red', lw=3, label='Double Gaussian Fit')
                 plt.ylabel('Number of Measurements')
                 plt.xlabel('$B_x$ in Magnetopause')
                 plt.legend()
@@ -1494,106 +1562,127 @@ def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseri
                 bimodal = True
 
             else:
-                #bimodal = False
+                # bimodal = False
                 bimodal = True
-                
-                A = np.sort(find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[1]['peak_heights'])[-1:]    
-                
-                #Finding corrresponding x position of the two tallest peaks
-                x1=np.where(find_peaks(y, height=np.mean(y), prominence=prom,distance=dis)[1]['peak_heights']==A)[0][0]
-                x1 = find_peaks(y, height=np.mean(y),prominence=prom, distance=dis)[0][x1]            
+
+                A = np.sort(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[
+                            1]['peak_heights'])[-1:]
+
+                # Finding corrresponding x position of the two tallest peaks
+                x1 = np.where(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[
+                              1]['peak_heights'] == A)[0][0]
+                x1 = find_peaks(y, height=np.mean(
+                    y), prominence=prom, distance=dis)[0][x1]
                 mu1 = x[x1]
-                
-                #Using these values as the expected values for fitting
-                expected = (mu1,5,A1)
+
+                # Using these values as the expected values for fitting
+                expected = (mu1, 5, A1)
 
                 print('NO BIMODAL')
-                params, cov = curve_fit(Gauss, x[:-1], y[:],expected)
-                plt.plot(x_fit, Gauss(x_fit, *params), color='red', lw=3, label='Gaussian Fit')
+                params, cov = curve_fit(Gauss, x[:-1], y[:], expected)
+                plt.plot(x_fit, Gauss(x_fit, *params),
+                         color='red', lw=3, label='Gaussian Fit')
 
                 split = params[0]
                 split_middle.append(split)
 
                 plt.title('Magnetopause interval')
-                plt.hist(df_info['mag_x'].values,density = True,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
-                plt.xlim(-60,60)
-                plt.vlines(split,ymin=0,ymax=y.max(),colors='k',ls='--',label='Split at Peak')
+                plt.hist(df_info['mag_x'].values, density=True,
+                         bins=bins, label=f'Orbit = {df.loc[i, 'Orbit']}')
+                plt.xlim(-60, 60)
+                plt.vlines(split, ymin=0, ymax=y.max(), colors='k',
+                           ls='--', label='Split at Peak')
                 plt.ylabel('Number of Measurements')
                 plt.xlabel('$B_x$ in Magnetopause')
                 plt.legend()
                 plt.savefig(f'Images/Distro_mp_{i}.png')
                 plt.show()
-                
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
+
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'start']-minutes), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
             Total_start = start_str
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'start']), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
             bins = 10
             if MS == True:
                 plt.title(f'{minute} minutes before MP')
-                plt.hist(df_info['mag_x'].values,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+                plt.hist(df_info['mag_x'].values, bins=bins,
+                         label=f'Orbit = {df.loc[i, 'Orbit']}')
                 plt.ylabel('Number of Measurements')
-                if df.loc[i,'Type'] == 'mp_in':
-                    plt.title(f'Magnetosheath {minute} minutes before MP interval for inbound')
+                if df.loc[i, 'Type'] == 'mp_in':
+                    plt.title(f'Magnetosheath {
+                              minute} minutes before MP interval for inbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 else:
-                    plt.title(f'Magnetosphere {minute} minutes before MP interval for outbound')
+                    plt.title(f'Magnetosphere {
+                              minute} minutes before MP interval for outbound')
                     plt.xlabel('$B_x$ in magnetosphere')
                 plt.legend()
-            #plt.savefig('Before_MP.png')
-            #plt.show()
+            # plt.savefig('Before_MP.png')
+            # plt.show()
 
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'end']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']+minutes), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'end']+minutes), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
             Total_end = end_str
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
             bins = 10
             if MS == True:
-                plt.hist(df_info['mag_x'].values,bins=bins,label=f'Orbit = {df.loc[i,'Orbit']}')
+                plt.hist(df_info['mag_x'].values, bins=bins,
+                         label=f'Orbit = {df.loc[i, 'Orbit']}')
                 plt.ylabel('Number of Measurements')
-                if df.loc[i,'Type'] == 'mp_in':
-                    plt.title(f'Magnetosphere {minute} minutes after MP interval for inbound')
+                if df.loc[i, 'Type'] == 'mp_in':
+                    plt.title(f'Magnetosphere {
+                              minute} minutes after MP interval for inbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 else:
-                    plt.title(f'Magnetosheath {minute} minutes after MP interval for outbound')
+                    plt.title(f'Magnetosheath {
+                              minute} minutes after MP interval for outbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 plt.legend()
-                #plt.savefig('After_MP.png')
-                #plt.show()
-            
+                # plt.savefig('After_MP.png')
+                # plt.show()
 
-            df_info = mag.mag_time_series(start_date=Total_start,end_date=Total_end,plot=False)
-            #plotting time series with split colour coded
-            fig, (ax1,ax2,ax3,ax4) = plt.subplots(4,1,sharex=True,figsize=(12,8), dpi=300)
+            df_info = mag.mag_time_series(
+                start_date=Total_start, end_date=Total_end, plot=False)
+            # plotting time series with split colour coded
+            fig, (ax1, ax2, ax3, ax4) = plt.subplots(
+                4, 1, sharex=True, figsize=(12, 8), dpi=300)
             Bamp = df_info['magamp']
             x = df_info['Time']
             y = df_info['mag_x']
-            if df.loc[i,'Type'] == 'mp_in':
-                Sheath = np.ma.masked_where(x > df.loc[i,'start'], x)
-                Sphere = np.ma.masked_where(x < df.loc[i,'end'], x)
-                SheathAmp= np.ma.masked_where(x > df.loc[i,'start'], Bamp)
-                SphereAmp= np.ma.masked_where(x < df.loc[i,'end'], Bamp)
-                Pause = np.ma.masked_where((x > df.loc[i,'end']) | (x < df.loc[i,'start']), x)
+            if df.loc[i, 'Type'] == 'mp_in':
+                Sheath = np.ma.masked_where(x > df.loc[i, 'start'], x)
+                Sphere = np.ma.masked_where(x < df.loc[i, 'end'], x)
+                SheathAmp = np.ma.masked_where(x > df.loc[i, 'start'], Bamp)
+                SphereAmp = np.ma.masked_where(x < df.loc[i, 'end'], Bamp)
+                Pause = np.ma.masked_where(
+                    (x > df.loc[i, 'end']) | (x < df.loc[i, 'start']), x)
             else:
-                Sphere = np.ma.masked_where(x > df.loc[i,'start'], x)
-                Sheath = np.ma.masked_where(x < df.loc[i,'end'], x)
-                SphereAmp= np.ma.masked_where(x > df.loc[i,'start'], Bamp)
-                SheathAmp= np.ma.masked_where(x < df.loc[i,'end'], Bamp)
-                Pause = np.ma.masked_where((x > df.loc[i,'end']) | (x < df.loc[i,'start']), x)
+                Sphere = np.ma.masked_where(x > df.loc[i, 'start'], x)
+                Sheath = np.ma.masked_where(x < df.loc[i, 'end'], x)
+                SphereAmp = np.ma.masked_where(x > df.loc[i, 'start'], Bamp)
+                SheathAmp = np.ma.masked_where(x < df.loc[i, 'end'], Bamp)
+                Pause = np.ma.masked_where(
+                    (x > df.loc[i, 'end']) | (x < df.loc[i, 'start']), x)
 
             ax1.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-            ax1.plot(Sheath,y,c='b',label='Magnetosheath')
-            ax1.plot(Sphere,y,c='red',label='Magnetosphere')
-            ax1.plot(Pause,y,c='mediumpurple',label='Magnetopause')
+            ax1.plot(Sheath, y, c='b', label='Magnetosheath')
+            ax1.plot(Sphere, y, c='red', label='Magnetosphere')
+            ax1.plot(Pause, y, c='mediumpurple', label='Magnetopause')
             ax1.set_ylabel('$B_x$ (nT)')
-            ax1.axhline(split,ls='--',c='r',lw=0.25)
-            ax1.axhline(ls='--',c='k')
-            ax1.axvline(df.loc[i,'start'],c='k')
-            ax1.axvline(df.loc[i,'end'],c='k')
+            ax1.axhline(split, ls='--', c='r', lw=1)
+            ax1.axhline(ls='--', c='k')
+            ax1.axvline(df.loc[i, 'start'], c='k')
+            ax1.axvline(df.loc[i, 'end'], c='k')
             ax1.legend()
 
             if bimodal == True:
@@ -1601,106 +1690,113 @@ def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseri
                 MagLower = np.ma.masked_where(y > split, y)
 
                 ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                ax2.plot(x,MagUpper,c='b',label='')
-                ax2.plot(x,MagLower,c='r',label='')
-                ax2.plot(Sheath,y,c='b',label='Magnetosheath')
-                ax2.plot(Sphere,y,c='red',label='Magnetosphere')
-                #ax2.set_xlabel('Time')
+                ax2.plot(x, MagUpper, c='b', label='')
+                ax2.plot(x, MagLower, c='r', label='')
+                ax2.plot(Sheath, y, c='b', label='Magnetosheath')
+                ax2.plot(Sphere, y, c='red', label='Magnetosphere')
+                # ax2.set_xlabel('Time')
                 ax2.set_ylabel('$B_x$ (nT)')
-                ax2.axhline(split,ls='--',c='r',lw=0.25)
-                ax2.axhline(ls='--',c='k')
-                ax2.axvline(df.loc[i,'start'],c='k')
-                ax2.axvline(df.loc[i,'end'],c='k')
+                ax2.axhline(split, ls='--', c='r', lw=1)
+                ax2.axhline(ls='--', c='k')
+                ax2.axvline(df.loc[i, 'start'], c='k')
+                ax2.axvline(df.loc[i, 'end'], c='k')
 
                 Bamp = df_info['magamp']
                 BampUpper = np.ma.masked_where(y < split, Bamp)
                 BampLower = np.ma.masked_where(y > split, Bamp)
 
                 ax3.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                ax3.plot(x,BampUpper,c='b',label='')
-                ax3.plot(x,BampLower,c='r',label='')
-                ax3.plot(x,SheathAmp,c='b',label='')
-                ax3.plot(x,SphereAmp,c='r',label='')
-                #ax3.set_xlabel('Time')
+                ax3.plot(x, BampUpper, c='b', label='')
+                ax3.plot(x, BampLower, c='r', label='')
+                ax3.plot(x, SheathAmp, c='b', label='')
+                ax3.plot(x, SphereAmp, c='r', label='')
+                # ax3.set_xlabel('Time')
                 ax3.set_ylabel('$|B|$ (nT)')
-                ax3.axhline(split,ls='--',c='r',lw=0.25)
-                ax3.axhline(ls='--',c='k')
-                ax3.axvline(df.loc[i,'start'],c='k')
-                ax3.axvline(df.loc[i,'end'],c='k')
+                ax3.axhline(ls='--', c='k')
+                ax3.axvline(df.loc[i, 'start'], c='k')
+                ax3.axvline(df.loc[i, 'end'], c='k')
 
             else:
-                ax2.plot(x,y) 
+                ax2.plot(x, y)
                 ax2.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
                 ax2.set_xlabel('Time')
                 ax2.set_ylabel('$B_x$ (nT)')
-                ax2.axhline(ls='--',c='k')
-                ax2.axvline(df.loc[i,'start'],c='k')
-                ax2.axvline(df.loc[i,'end'],c='k')
-                
+                ax2.axhline(ls='--', c='k')
+                ax2.axvline(df.loc[i, 'start'], c='k')
+                ax2.axvline(df.loc[i, 'end'], c='k')
+
                 ax3.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-                ax3.plot(x,y,label='')
+                ax3.plot(x, y, label='')
                 ax3.set_xlabel('Time')
                 ax3.set_ylabel('$|B|$ (nT)')
-                ax3.axhline(ls='--',c='k')
-                ax3.axvline(df.loc[i,'start'],c='k')
-                ax3.axvline(df.loc[i,'end'],c='k')
-            
+                ax3.axhline(ls='--', c='k')
+                ax3.axvline(df.loc[i, 'start'], c='k')
+                ax3.axvline(df.loc[i, 'end'], c='k')
 
-            #Add fourth panel with RMS
+            # Add fourth panel with RMS
             time_int = int(time_win/2)
-
+            if RMS == 'x':
+                Bamp = y
+                ax4.set_ylabel(f'RMS of $B_x$ \n averaging over {
+                               time_win} seconds')
+            else:
+                ax4.set_ylabel(f'RMS of $|B|$ \n averaging over {
+                               time_win} seconds')
             time_avg = x[time_int:-time_int]
             mag_avg = Bamp[time_int:-time_int]
-            b_avg=np.array([])
-            if np.size(x)>int(time_int*2):
-                for p in np.round(np.linspace(time_int,np.size(x)-time_int,num=np.size(x)-int(time_int*2))):
-                    gd=[p-time_int,p+time_int]
-                    ba=Bamp[int(gd[0]):int(gd[1])]
-                    b_avg=np.append(b_avg,np.mean(ba))
-                mag_test=Bamp[time_int:-time_int]
-                print(len(Bamp))
-                print(np.shape(mag_test),np.shape(b_avg))
-                rms_B=np.sqrt((mag_test-b_avg)**2)
-            
-            date = df.loc[i,'start']
+            b_avg = np.array([])
+            if np.size(x) > int(time_int*2):
+                for p in np.round(np.linspace(time_int, np.size(x)-time_int, num=np.size(x)-int(time_int*2))):
+                    gd = [p-time_int, p+time_int]
+                    ba = Bamp[int(gd[0]):int(gd[1])]
+                    b_avg = np.append(b_avg, np.mean(ba))
+                mag_test = Bamp[time_int:-time_int]
+                rms_B = np.sqrt((mag_test-b_avg)**2)
+
+            date = df.loc[i, 'start']
             date = date.strftime("%Y-%m-%d")
             ax4.set_xlabel(f'Time \n Date: {date}')
 
-            if df.loc[i,'Type'] == 'mp_in':
-                SheathRMS= np.ma.masked_where(x[time_int:-time_int] > df.loc[i,'start'], rms_B)
-                SphereRMS= np.ma.masked_where(x[time_int:-time_int] < df.loc[i,'end'], rms_B)
-                
+            if df.loc[i, 'Type'] == 'mp_in':
+                SheathRMS = np.ma.masked_where(
+                    x[time_int:-time_int] > df.loc[i, 'start'], rms_B)
+                SphereRMS = np.ma.masked_where(
+                    x[time_int:-time_int] < df.loc[i, 'end'], rms_B)
+
             else:
-                SphereRMS= np.ma.masked_where(x[time_int:-time_int] > df.loc[i,'start'], rms_B)
-                SheathRMS= np.ma.masked_where(x[time_int:-time_int] < df.loc[i,'end'], rms_B)
-                
+                SphereRMS = np.ma.masked_where(
+                    x[time_int:-time_int] > df.loc[i, 'start'], rms_B)
+                SheathRMS = np.ma.masked_where(
+                    x[time_int:-time_int] < df.loc[i, 'end'], rms_B)
+
             RMSUpper = np.ma.masked_where(y[time_int:-time_int] < split, rms_B)
             RMSLower = np.ma.masked_where(y[time_int:-time_int] > split, rms_B)
 
-            #ax4.plot(time_avg,rms_B, c='gray',lw='0.75')
-            ax4.plot(time_avg,RMSUpper,c='b',label='')
-            ax4.plot(time_avg,RMSLower,c='r',label='')
-            ax4.plot(time_avg,SheathRMS,c='b',label='')
-            ax4.plot(time_avg,SphereRMS,c='r',label='')
-            ax4.set_ylabel(f'RMS of $|B|$ \n averaging over {time_win} seconds')
-            ax4.axvline(df.loc[i,'start'],c='k')
-            ax4.axvline(df.loc[i,'end'],c='k')
+            # ax4.plot(time_avg,rms_B, c='gray',lw='0.75')
+            ax4.plot(time_avg, RMSUpper, c='b', label='')
+            ax4.plot(time_avg, RMSLower, c='r', label='')
+            ax4.plot(time_avg, SheathRMS, c='b', label='')
+            ax4.plot(time_avg, SphereRMS, c='r', label='')
 
+            ax4.axvline(df.loc[i, 'start'], c='k')
+            ax4.axvline(df.loc[i, 'end'], c='k')
 
-            fig.savefig(f'Images/colour_coded_mp_{i}.png') 
+            fig.savefig(f'Images/colour_coded_mp_{i}.png')
             fig.show()
-            
 
             if timeseries == True:
-                #print(Total_start,Total_end)
-                axt, figt = mag.mag_time_series(start_date=Total_start,end_date=Total_end,philpott=True, save=True,num = i)
+                # print(Total_start,Total_end)
+                axt, figt = mag.mag_time_series(
+                    start_date=Total_start, end_date=Total_end, philpott=True, save=True, num=i)
                 figt.savefig(f'Images/time_series_{i}.png')
 
-        if splitDistro==True:
+        if splitDistro == True:
             plt.close()
-            bins=20
-            plt.hist(split_middle,color='k',bins=bins,label='Intersection Split',histtype='step')
-            plt.hist(split_std,color='r',bins=bins,label='Std Split',histtype='step')
+            bins = 20
+            plt.hist(split_middle, color='k', bins=bins,
+                     label='Intersection Split', histtype='step')
+            plt.hist(split_std, color='r', bins=bins,
+                     label='Std Split', histtype='step')
             plt.title('Distribution of Splits')
             plt.legend()
             plt.xlabel('$B_x$ in Magnetopause')
@@ -1709,93 +1805,527 @@ def mag_mp_hist(df,n=1,minute=5, time_win=120, combine = False,MS=False,timeseri
             plt.show()
     else:
         MP = []
-        MSheath_in=[]
-        MSheath_out=[]
-        MSphere_in=[]
-        MSphere_out=[]
+        MSheath_in = []
+        MSheath_out = []
+        MSphere_in = []
+        MSphere_out = []
         for i in df.index:
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'start']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'end']), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
             MP.append(df_info['mag_x'].values)
 
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'start']-minutes), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'start']-minutes), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'start']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'start']), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
-            if df.loc[i,'Type'] == 'mp_in':
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
+            if df.loc[i, 'Type'] == 'mp_in':
                 MSheath_in.append(df_info['mag_x'].values)
             else:
                 MSphere_out.append(df_info['mag_x'].values)
 
-            parsed_datetime_s = datetime.datetime.strptime(str(df.loc[i,'end']), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_s = datetime.datetime.strptime(
+                str(df.loc[i, 'end']), "%Y-%m-%d %H:%M:%S")
             start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-            parsed_datetime_e = datetime.datetime.strptime(str(df.loc[i,'end']+minutes), "%Y-%m-%d %H:%M:%S")
+            parsed_datetime_e = datetime.datetime.strptime(
+                str(df.loc[i, 'end']+minutes), "%Y-%m-%d %H:%M:%S")
             end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-            df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
-            if df.loc[i,'Type'] == 'mp_in':
+            df_info = mag.mag_time_series(
+                start_date=start_str, end_date=end_str, plot=False)
+            if df.loc[i, 'Type'] == 'mp_in':
                 MSphere_in.append(df_info['mag_x'].values)
             else:
                 MSheath_out.append(df_info['mag_x'].values)
-        bins=50
+        bins = 50
         plt.title('Magnetopause interval')
-        plt.hist(MP, bins=bins, density = True,label=f'Orbits = {n}')
+        plt.hist(MP, bins=bins, density=True, label=f'Orbits = {n}')
         plt.ylabel('Number of Measurements')
         plt.xlabel('$B_x$ in Magnetopause')
         plt.legend()
         plt.savefig('In_MP.png')
         plt.show()
 
-        #print(df_info)
+        # print(df_info)
 
-def spatial_box_plot(df_crossing,orient='x'):
+
+def spatial_box_plot(df_crossing, orient='x'):
     ''' Plot box plots of spatial position versus crossing duration
     Crossings duration split into 4 equally sized bins
     '''
-    df=df_crossing
+    df = df_crossing
     df['Interval'] = (df.end-df.start).dt.total_seconds()
 
-    quant25=df['Interval'].quantile(0.25)
-    quant50=df['Interval'].quantile(0.5)
-    quant75=df['Interval'].quantile(0.75)
+    quant25 = df['Interval'].quantile(0.25)
+    quant50 = df['Interval'].quantile(0.5)
+    quant75 = df['Interval'].quantile(0.75)
 
     if orient == 'all':
         df['Avg_x'] = (df['start_x_msm']+df['end_x_msm'])/2
         df['Avg_y'] = (df['start_y_msm']+df['end_y_msm'])/2
         df['Avg_z'] = (df['start_z_msm']+df['end_z_msm'])/2
-        r_all = np.sqrt(df.Avg_x.to_numpy()**2 + df.Avg_y.to_numpy()**2 + \
+        r_all = np.sqrt(df.Avg_x.to_numpy()**2 + df.Avg_y.to_numpy()**2 +
                         df.Avg_z.to_numpy()**2)
         df['All'] = r_all
-        bin1=df['All'][df['Interval']<=quant25].values
-        bin2=df['All'][(df['Interval']>quant25)&((df['Interval']<=quant50))].values
-        bin3=df['All'][(df['Interval']>quant50)&((df['Interval']<=quant75))].values
-        bin4=df['All'][(df['Interval']>quant75)].values
+        bin1 = df['All'][df['Interval'] <= quant25].values
+        bin2 = df['All'][(df['Interval'] > quant25) & (
+            (df['Interval'] <= quant50))].values
+        bin3 = df['All'][(df['Interval'] > quant50) & (
+            (df['Interval'] <= quant75))].values
+        bin4 = df['All'][(df['Interval'] > quant75)].values
         plt.ylabel('Position in $\sqrt{x^2+y^2+z^2}$_MSM ($R_M$)')
 
     else:
-        df[f'Avg_{orient}'] = (df[f'start_{orient}_msm']+df[f'end_{orient}_msm'])/2
-        bin1=df[f'Avg_{orient}'][df['Interval']<=quant25].values
-        bin2=df[f'Avg_{orient}'][(df['Interval']>quant25)&((df['Interval']<=quant50))].values
-        bin3=df[f'Avg_{orient}'][(df['Interval']>quant50)&((df['Interval']<=quant75))].values
-        bin4=df[f'Avg_{orient}'][(df['Interval']>quant75)].values
+        df[f'Avg_{orient}'] = (
+            df[f'start_{orient}_msm']+df[f'end_{orient}_msm'])/2
+        bin1 = df[f'Avg_{orient}'][df['Interval'] <= quant25].values
+        bin2 = df[f'Avg_{orient}'][(df['Interval'] > quant25) & (
+            (df['Interval'] <= quant50))].values
+        bin3 = df[f'Avg_{orient}'][(df['Interval'] > quant50) & (
+            (df['Interval'] <= quant75))].values
+        bin4 = df[f'Avg_{orient}'][(df['Interval'] > quant75)].values
         plt.ylabel(f'Position in {orient}_MSM ($R_M$)')
 
-    labels=[ f'0 - {quant25} s \n $n$={len(bin1)}', f' {quant25} - {quant50} s \n $n$={len(bin2)}',f'{quant50} - {quant75} s \n $n$={len(bin3)}',f'> {quant75} s \n $n$={len(bin4)}']
-    total =[bin1,bin2,bin3,bin4]
-    
-    plt.boxplot(total,labels=labels,whis=(0,100))
+    labels = [f'0 - {quant25} s \n $n$={len(bin1)}', f' {quant25} - {quant50} s \n $n$={len(
+        bin2)}', f'{quant50} - {quant75} s \n $n$={len(bin3)}', f'> {quant75} s \n $n$={len(bin4)}']
+    total = [bin1, bin2, bin3, bin4]
+
+    plt.boxplot(total, labels=labels, whis=(0, 100))
     # plt.violinplot(total)
     # plt.xticks([y + 1 for y in range(len(total))],
     #               labels=labels)
-    print(len(bin1),len(bin2),len(bin3),len(bin4))
-    plt.ylim(-8,8)
+    print(len(bin1), len(bin2), len(bin3), len(bin4))
+    plt.ylim(-8, 8)
     plt.xlabel('Duration of Magnetopause Crossing')
     plt.savefig(f'box_plot_{orient}.png')
     # plt.savefig(f'Violin_plot_{orient}.png')
     plt.show()
+
+
+def add_type_to_all(df_all, df_crossing):
+    counter = 0
+    df_all['Type'] = 'None'
+    for i in tqdm.tqdm(df_crossing['Orbit'].unique()):
+        start_values_out = df_crossing[(df_crossing['Orbit'] == i) & (
+            df_crossing['Type'] == 'mp_out')]['end'].values
+        end_values_out = df_crossing[(df_crossing['Orbit'] == i) & (
+            df_crossing['Type'] == 'bs_out')]['start'].values
+
+        start_values_in = df_crossing[(df_crossing['Orbit'] == i) & (
+            df_crossing['Type'] == 'bs_in')]['end'].values
+        end_values_in = df_crossing[(df_crossing['Orbit'] == i) & (
+            df_crossing['Type'] == 'mp_in')]['start'].values
+
+        start_sphere = df_crossing[(df_crossing['Orbit'] == i) & (
+            df_crossing['Type'] == 'mp_in')]['end'].values
+        hour = datetime.timedelta(hours=1)
+        end_sphere = (df_crossing[(df_crossing['Orbit'] == i) & (
+            df_crossing['Type'] == 'mp_out')]['start']).values
+
+        # Check if there are any values found for start and end
+        if start_values_out.size > 0 and end_values_out.size > 0:
+            start = start_values_out[0]
+            end = end_values_out[0]
+            # Update the 'Type' column in df_all if its with Sheath time range
+            df_all.loc[(df_all['Time'] > start) & (
+                df_all['Time'] < end), 'Type'] = 'Sheath'
+
+        if start_values_in.size > 0 and end_values_in.size > 0:
+            start = start_values_in[0]
+            end = end_values_in[0]
+            # Update the 'Type' column in df_all if its with Sheath time range
+            df_all.loc[(df_all['Time'] > start) & (
+                df_all['Time'] < end), 'Type'] = 'Sheath'
+
+        if start_sphere.size > 0 and end_sphere.size > 0:
+            start = start_sphere[0]
+            end = end_sphere[0]
+            counter += 1
+            # Update the 'Type' column in df_all if its with Sheath time range
+            df_all.loc[(df_all['Time'] > start) & (
+                df_all['Time'] < end), 'Type'] = 'Sphere'
+
+    print(f"\n Orbits with sphere {
+          counter}/{len(df_crossing['Orbit'].unique())}")
+    return df_all
+
+# df_info = pd.read_pickle("df_info_all.pkl")
+
+
+def spatial_binning_orbits(df_info, df_crossing, add_type=False, plot_time_hist=False):
+    ''' Function to bin sheath and sphere into 4 areas
+    1) Add marker to df_info to identify when in sheath and sphere
+    2) Create different regions to bin crossings
+    '''
+
+    if add_type == True:
+        df_info = add_type_to_all(df_info, df_crossing)
+
+    df_all_sheath = df_info[(df_info.Type == 'Sheath')]
+    df_all_sphere = df_info[(df_info.Type == 'Sphere')]
+
+    df_all_sheath['Theta'] = np.rad2deg(
+        np.arctan(df_all_sheath['eph_x']/df_all_sheath['eph_y']))
+    df_all_sphere['Theta'] = np.rad2deg(
+        np.arctan(df_all_sphere['eph_x']/df_all_sphere['eph_y']))
+
+    def binning(df_all_sheath):
+        xz1 = df_all_sheath[((df_all_sheath.Theta >= 45) | (
+            df_all_sheath.Theta < -45)) & (df_all_sheath.eph_x <= 0)]
+        yz1 = df_all_sheath[(df_all_sheath.Theta < 45) & (
+            df_all_sheath.Theta >= -45) & (df_all_sheath.eph_y >= 0)]
+        xz2 = df_all_sheath[((df_all_sheath.Theta >= 45) | (
+            df_all_sheath.Theta < -45)) & (df_all_sheath.eph_x > 0)]
+        yz2 = df_all_sheath[(df_all_sheath.Theta < 45) & (
+            df_all_sheath.Theta >= -45) & (df_all_sheath.eph_y < 0)]
+        return xz1, yz1, xz2, yz2
+
+    label = ['x-z orbit \n & x <= 0', 'y-z orbit \n & y > 0',
+             'x-z orbit \n & x > 0', 'y-z orbit \n & y <= 0']
+
+    # bin1 = df_all_sheath[(df_all.ephx >= 0)&(df_all.ephy >= 0)]
+    # bin2 = df_all_sheath[(df_all.ephx >= 0)&(df_all.ephy < 0)]
+    # bin3 = df_all_sheath[(df_all.ephx < 0)&(df_all.ephy >= 0)]
+    # bin4 = df_all_sheath[(df_all.ephx < 0)&(df_all.ephy < 0)]
+    # label = ['x >= 0 & y >= 0','x >= 0 & y < 0','x < 0 & y >= 0','x < 0 & y < 0']
+    if plot_time_hist == True:
+        bin1, bin2, bin3, bin4 = binning(df_all_sphere)
+        counts = [len(bin1), len(bin2), len(bin3), len(bin4)]
+
+        fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True)
+
+        ax1.bar(label, counts)
+        ax1.set_title('Sphere')
+        ax1.set_ylabel('Time spent in region \n (1 minutes)')
+        bin1, bin2, bin3, bin4 = binning(df_all_sheath)
+        counts = [len(bin1), len(bin2), len(bin3), len(bin4)]
+        ax2.bar(label, counts)
+        ax2.set_title('Sheath')
+        ax2.set_ylabel('Time spent in region \n (1 minutes)')
+        fig.show()
+        fig.savefig("SheathSphere.png")
+        plt.show()
+
+    xz1_sheath, yz1_sheath, xz2_sheath, yz2_sheath = binning(df_all_sheath)
+    xz1_sphere, yz1_sphere, xz2_sphere, yz2_sphere = binning(df_all_sphere)
+
+    # parsed_datetime_s = datetime.datetime.strptime(str(df_all['Time'].min()), "%Y-%m-%d %H:%M:%S")
+    # start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+    # parsed_datetime_e = datetime.datetime.strptime(str(df_all['Time'].max()), "%Y-%m-%d %H:%M:%S")
+    # end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+    # print(start_str,end_str)
+
+    # df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+    # df_info.to_pickle("df_info_all.pkl")
+
+    def hist(bin, title):
+
+        var_name = title
+
+        plt.title(f'{var_name} (Total counts={len(bin)})')
+        plt.ylabel('Counts')
+        plt.xlabel('Magnetic field strength (nT)')
+        a = -100
+        b = 100
+        plt.hist(bin['mag_x'], bins=100, range=(
+            a, b), histtype='step', label='$B_x$')
+        plt.hist(bin['mag_y'], bins=100, range=(
+            a, b), histtype='step', label='$B_y$')
+        plt.hist(bin['mag_z'], bins=100, range=(
+            a, b), histtype='step', label='$B_z$')
+        plt.hist(bin['magamp'], bins=100, range=(
+            a, b), histtype='step', label='|B|')
+        plt.legend()
+        # plt.xlim(-100,100)
+        # plt.yscale('log')
+        plt.savefig(f'{var_name}.png')
+        plt.show()
+
+    hist(xz1_sheath, 'xz1_sheath')
+    hist(yz1_sheath, 'yz1_sheath')
+    hist(xz2_sheath, 'xz2_sheath')
+    hist(yz2_sheath, 'yz2_sheath')
+    hist(xz1_sphere, 'xz1_sphere')
+    hist(yz1_sphere, 'yz1_sphere')
+    hist(xz2_sphere, 'xz2_sphere')
+    hist(yz2_sphere, 'yz2_sphere')
+
+    # plt.hist(xz1_sheath['mag_x'])
+
+
+def residence_plot(df_info, first_time=False):
+    ''' Polar residence plot of percentage Sheath and Sphere around Mercury
+    Inputs:
+    df_info -- dataframe containing eph data
+    first_time -- When true adds sheath and sphere label to df_info, must be true for first run
+    '''
+    import matplotlib.colors as mcolors
+    import matplotlib.cm as cm
+
+    # df_crossing = df_p
+    # df_info=add_type_to_all(df_info,df_crossing)
+    # df_info.to_pickle("df_info_type.pickle")
+
+    df_info = pd.read_pickle("df_info_type.pickle")
+    df = df_info
+
+    # Calculate angles
+
+    df['x'] = df['eph_x']/2440
+    df['y'] = df['eph_y']/2440
+    df['r'] = np.sqrt(df['y']**2+df['x']**2)
+    df['angle'] = np.arctan2(df['y'], df['x'])
+
+    # Ensure angles are in the range [0, 2*pi]
+    df['angle'] = np.where(
+        df['angle'] < 0, df['angle'] + 2 * np.pi, df['angle'])
+
+    # Number of bins
+    num_bins_angle = 12
+    num_bins_radius = 5
+
+    # Binning the data
+    bins_angle = np.linspace(0, 2 * np.pi, num_bins_angle + 1)
+    bins_radius = np.linspace(0, 5, num_bins_radius + 1)
+    # bins_radius = np.linspace(df['r'].min(), df['r'].max(), num_bins_radius + 1)
+
+    df['angle_bin'] = pd.cut(df['angle'], bins=bins_angle,
+                             labels=False, include_lowest=True)
+    df['radius_bin'] = pd.cut(
+        df['r'], bins=bins_radius, labels=False, include_lowest=True)
+
+    bin_counts = np.zeros((num_bins_radius, num_bins_angle))
+    sheath_counts = np.zeros((num_bins_angle, num_bins_angle))
+    sphere_counts = np.zeros((num_bins_radius, num_bins_angle))
+
+    if first_time == True:
+        for _, row in df.iterrows():
+            r_bin = int(row['radius_bin'])
+            a_bin = int(row['angle_bin'])
+            bin_counts[r_bin, a_bin] += 1
+            if row['Type'] == 'Sheath':
+                sheath_counts[r_bin, a_bin] += 1
+            elif row['Type'] == 'Sphere':
+
+                sphere_counts[r_bin, a_bin] += 1
+        print(sphere_counts)
+        print(sheath_counts)
+        np.save('Bin_counts.npy', bin_counts)
+        np.save('Sphere_counts.npy', sphere_counts)
+        np.save('Sheath_counts.npy', sheath_counts)
+    else:
+        bin_counts = np.load('Bin_counts.npy')
+        sphere_counts = np.load('Sphere_counts.npy')
+        sheath_counts = np.load('Sheath_counts.npy')
+
+    print('Sheath \n', sheath_counts)
+    print('Sphere \n', sphere_counts)
+    # Calculate percentage spheres of bin sphere/total
+    percent_sphere = np.zeros_like(bin_counts, dtype=float)
+    nonzero_mask = bin_counts > 0
+    percent_sphere[nonzero_mask] = sphere_counts[nonzero_mask] / \
+        bin_counts[nonzero_mask]
+    percent_sphere[~nonzero_mask] = np.nan  # Assign NaN to bins with no data
+
+    # Mask the bins with no data
+    masked_percent_sphere = np.ma.masked_where(
+        np.isnan(percent_sphere), percent_sphere)
+
+    # Create a colormap with white for NaNs
+    cmap = plt.get_cmap('coolwarm')
+    cmap.set_bad(color='white')
+
+    # Create the polar plot
+    fig, ax = plt.subplots(subplot_kw={'projection': 'polar'})
+
+    r, theta = np.meshgrid(bins_radius, bins_angle)
+
+    # Plot data using pcolormesh
+    c = ax.pcolormesh(theta, r, masked_percent_sphere.T,
+                      cmap=cmap, shading='auto')  # , edgecolors='k')
+
+    fig.colorbar(c, ax=ax, orientation='vertical')
+
+    # Add title
+    ax.set_title(
+        "Polar Plot with Non-Rectangular Bins for 'Sheath' and 'Sphere'")
+
+    ax.set_xticks(np.linspace(0, 4 * np.pi/2, 13))
+    ax.set_xticklabels(['12', '14', '16', '18', '20', '22',
+                       '0', '2', '4', '6', '8', '10', '12'])
+
+    ax.set_yticks(np.linspace(1, 5.0, 5))
+    ax.set_yticklabels(['1 $R_M$', '2 $R_M$', '3 $R_M$', '4 $R_M$', '5 $R_M$'])
+    plt.show()
+
+    # ax2.set_xticks(np.linspace(0, 4 * np.pi/2, 13))
+    # ax2.set_xticklabels(['12','14','16','18','20','22','0','2','4','6','8','10','12'])
+
+    # #ax.set_title("Polar Residence Plot Time Spent in 'Sheath' and 'Sphere'")
+
+    # plt.show()
+
+
+# \/ Charlies code for polar histograms \/
+
+def create_lobe_quartile_p():
+    '''
+    Function to generate and save the residence and magnetic field distribution of lobe fields
+    Takes in the Lobe Data dataframe to as an input
+    This returns the polar version of the residence plots, not the Cartesian
+    Returns
+    -------
+    Creates mesh_mag,mesh_eph,mesh_count which is used in the polar plots for spatial residence
+    and distribution of magnetic fields
+    '''
+    import pandas as pd
+    import datetime
+    import numpy as np
+    # Load in a pandas dataframe with all of the lobe magnetic field data and position
+    Lobe_Data = pd.read_pickle("df_info_all.pkl")
+    # Specify the number of bins in theta and r
+    sc = 30
+    sc2 = 60
+    # Specify range in Z to consider
+    pos_z = [-4, .5]
+    # mesh goes r, theta, z, mag
+    mesh_mag = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
+    count = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0]))
+    mesh_eph = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
+    mesh_amp_up = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
+    mesh_amp_lp = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
+    mesh_sB = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
+    # Specify how far in r and theta you want to go
+    distance = 5.0
+    pos_r = np.arange(sc+1)*distance/(sc)
+    distance_theta = np.pi
+    pos_theta = np.arange(sc2+1)*distance_theta/(sc2/2)-distance
+    ephx = Lobe_Data.eph_x
+    ephy = Lobe_Data.eph_y
+    ephz = Lobe_Data.eph_z
+    # Define Theta and r for ephemeris data
+    theta_d = np.arctan2(ephy, ephx)
+    r = np.sqrt(ephy**2+ephx**2)
+    magx = Lobe_Data.mag_x
+    magy = Lobe_Data.mag_y
+    magz = Lobe_Data.mag_z
+    magamp = np.sqrt(magx**2+magy**2+magz**2)
+    # Create shifted positions to search for data within the bins
+    r_pos_r = np.roll(pos_r, -1)
+    r_pos_theta = np.roll(pos_theta, -1)
+    r_pos_z = np.roll(pos_z, -1)
+    for rr in tqdm.tqdm(range(np.size(pos_r))):
+        print(rr/np.size(pos_r))
+        for tt in range(np.size(pos_theta)):
+            for zz in range(np.size(pos_z)):
+                gd_a = np.where((r > pos_r[rr]) & (r < r_pos_r[rr]) &
+                                (theta_d > pos_theta[tt]) & (theta_d < r_pos_theta[tt]) &
+                                (ephz > pos_z[zz]) & (ephz < r_pos_z[zz]))[0]
+                if np.size(gd_a) > 0:
+                    l = gd_a[0]
+                    # Reassign variable to x,y,z to help keep it straight
+                    x = rr
+                    y = tt
+                    z = zz
+                    magx_gd = magx.iloc[gd_a]
+                    magy_gd = magy.iloc[gd_a]
+                    magz_gd = magz.iloc[gd_a]
+                    ephx_gd = ephx.iloc[gd_a]
+                    ephy_gd = ephy.iloc[gd_a]
+                    ephz_gd = ephz.iloc[gd_a]
+                    magamp_gd = magamp.iloc[gd_a]
+                    sB_gd = Lobe_Data.scaled_B.iloc[gd_a]
+                    mesh_mag[x, y, z, 0] = np.mean(magx_gd)
+                    mesh_sB[x, y, z, 0] = np.mean(sB_gd)
+                    mesh_mag[x, y, z, 1] = np.mean(magy_gd)
+                    mesh_mag[x, y, z, 2] = np.mean(magz_gd)
+                    count[x, y, z] = np.size(magz_gd)
+                    mesh_eph[x, y, z, 0] = np.mean(ephx_gd)
+                    mesh_eph[x, y, z, 1] = np.mean(ephy_gd)
+                    mesh_eph[x, y, z, 2] = np.mean(ephz_gd)
+                    mesh_amp_up[x, y, z] = np.percentile(magamp_gd, 75)
+                    mesh_amp_lp[x, y, z] = np.percentile(magamp_gd, 25)
+    # Save meshes as npy files to call in the plot_lobe_mesh_polar function
+    np.save('mesh_lobe_up_TEST.npy', mesh_amp_up)
+    np.save('mesh_lobe_lp_TEST.npy', mesh_amp_lp)
+    np.save('mesh_lobe_p_TEST.npy', mesh_mag)
+    np.save('count_lobe_p_TEST.npy', count)
+    np.save('mesh_eph_p_TEST.npy', mesh_eph)
+    np.save('mesh_sB_p_TEST.npy', mesh_sB)
+    np.save('pos_r_TEST.npy', pos_r)
+    np.save('pos_theta_TEST.npy', pos_theta)
+
+
+# Function 2: Plotting the mesh in polar coordinates:
+def plot_lobe_mesh_polar():
+    '''
+    Generate polar magnetic field plots from mesh_lobe and count_lobe to make a map of lobe field strength
+    in polar coordinates
+    '''
+    # Generate polar plots of magnetic field and flaring angle
+    import numpy as np
+    import matplotlib.pyplot as plt
+    # for i in range(np.size(mesh[0,0,:,0])):
+    i = 0
+    pos_r = np.load('pos_r_TEST.npy')
+    pos_theta = np.load('pos_theta_TEST.npy')
+    mesh = np.load('mesh_lobe_p_TEST.npy')
+    count = np.load('count_lobe_p_TEST.npy')
+    mesh_eph = np.load('mesh_eph_p_TEST.npy')
+    fig, axs = plt.subplots(1, 1, subplot_kw=dict(projection='polar'))
+    mx = mesh[:, :, 0, 0]
+    my = mesh[:, :, 0, 1]
+    mz = mesh[:, :, 0, 2]
+    mesh_amp = np.sqrt(mesh[:, :, :, 0]**2 +
+                       mesh[:, :, :, 1]**2+mesh[:, :, :, 2]**2)
+    ma = mesh_amp[:, :, 0]
+
+    def format_polar_plots(axis):
+        axis.set_xlim(np.pi/2, 3*np.pi/2)
+        axis.set_xticks(np.linspace(np.pi/2, 3 * np.pi/2, 7))  # Set 6 ticks
+        axis.set_xticklabels(['18', '20', '22', '0', '2', '4', '6'])
+        axis.set_ylim(0, 4.5)
+        axis.set_ylim(0, 4.5)
+        axis.set_ylim(0, 4.5)
+        axis.set_yticks(np.linspace(1, 4.0, 4))
+        axis.set_yticklabels(['1 $R_M$', '2 $R_M$', '3 $R_M$', '4 $R_M$'])
+    theta, r = np.meshgrid(pos_theta, pos_r)
+    from matplotlib import cm
+    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
+    viridis = cm.get_cmap('viridis', 1000)
+    newcolors = viridis(np.linspace(0, 1, 1000))
+    pink = np.array([.1])
+    newcolors[500, :] = pink
+    newcmp = ListedColormap(newcolors)
+    count = count[:-1, :-1, 0]
+    ma = ma[:-1, :-1]
+    ma[count == 0] = 40
+    viridis = cm.get_cmap('bwr', 1000)
+    newcolors = viridis(np.linspace(0, 1, 1000))
+    pink = np.array([.1])
+    newcolors[500, :] = pink
+    newcmp = ListedColormap(newcolors)
+    alpha = np.arctan2(mz, mx*(-1))*180./np.pi
+    mx = mx[:-1, :-1]
+    mx[count == 0] = 0.0
+    my = my[:-1, :-1]
+    my[count == 0] = 0.0
+    mz = mz[:-1, :-1]
+    mz[count == 0] = 0.0
+    alpha = alpha[:-1, :-1]
+    alpha[count == 0] = 0.0
+    format_polar_plots(axs)
+    np.shape(theta)
+    axs.imshow(mx, vmin=-10, vmax=10)
+
 
 # def compare_boundaries(df1, df2, dt=30):
 
@@ -1906,7 +2436,7 @@ def spatial_box_plot(df_crossing,orient='x'):
 #                     df.start_z_msm.to_numpy()**2)
 #     t_all = df.start
 #     from scipy.signal import find_peaks
-    
+
 #     peaks, _ = find_peaks(-r_all)
 
 #     # Filter peaks based on time separation
