@@ -5,26 +5,6 @@ Created on Tue May 28 10:33:16 2024
 
 @author: bowersch
 """
-''' Code to load in MESSENGER boundaries identified by Philpott and Sun.
-
- Link to download Philpott boundary list:  
-    
-     https://doi.org/10.1029/2019JA027544
-    
-   Want the jgra55678-sup-0002-Table_SI-S01.xlsx file in the 
-   Supplementary Material section. 
-
-   Then, save this file as a .csv file for more easy use in python
-
-
- Specify location on you machine of this file here:
-    '''
-
-
-'''
-Load list if already saved in pickle
-'''
-
 
 from scipy.signal import find_peaks
 import tqdm
@@ -43,9 +23,15 @@ plt.rcParams['axes.prop_cycle'] = plt.cycler(color=['#377eb8', '#ff7f00', '#4daf
                                                     '#f781bf', '#a65628', '#984ea3',
                                                     '#999999', '#e41a1c', '#dede00'])
 
-# Function to load in crossing lists and add orbit informatiom
+'''
+Load list if already saved in pickle
+'''
 def start():
-    '''Returns df_all, df_p, df_sun'''
+    ''' Loads in crossing lists and returns data frames:
+    df_all -- 10 minute resolution ephemeris data for entire mission,
+    df_p -- Philpott crossings list with orbit number
+    df_sun -- Sun crossings list with orbit number
+    '''
     with open('df_p.pickle', 'rb') as f:
         df_p = pickle.load(f)
     with open('df_s.p', 'rb') as f:
@@ -58,8 +44,26 @@ def start():
 
 
 def info():
+    ''' Load in data frame with ephemeris 
+    and mag data for the entire mission at 1 second resolution
+    '''
     df_info = pd.read_pickle("df_info_all.pkl")
     return df_info
+
+''' Code to load in MESSENGER boundaries identified by Philpott and Sun.
+
+ Link to download Philpott boundary list:  
+    
+     https://doi.org/10.1029/2019JA027544
+    
+   Want the jgra55678-sup-0002-Table_SI-S01.xlsx file in the 
+   Supplementary Material section. 
+
+   Then, save this file as a .csv file for more easy use in python
+
+
+ Specify location on you machine of this file here:
+    '''
 
 
 philpott_file = '/home/adam/Desktop/DIAS/MESSENGER/MESSENGER_Boundary_Testing/jgra55678-sup-0002-table_si-s01.csv'
@@ -120,7 +124,6 @@ Sun_file = '/home/adam/Desktop/DIAS/MESSENGER/MESSENGER_Boundary_Testing/Sun_Bou
        
 '''
 
-# Load in packages
 
 
 def convert_to_datetime(date_string):
@@ -538,6 +541,7 @@ def plot_boundary_locations(df):
 def plot_boundary_locations_solar_distance(df):
     '''Plotting the MagnetoPause colour coded based on
         distance mercury is from sun during measurement.
+        df -- crossing list data frame
     '''
 
     df_mp = df[((df.Type == 'mp_in') | (df.Type == 'mp_out'))]
@@ -558,7 +562,6 @@ def plot_boundary_locations_solar_distance(df):
     df_bs = AvgDate_Distance(df_bs)
 
     # Dividing MP into 4 distance regions
-    # number of bins
     numBin = 4
     MPmin = df_mp["Distance"].min()
     MPmax = df_mp["Distance"].max()
@@ -567,12 +570,6 @@ def plot_boundary_locations_solar_distance(df):
     # Create new dataframes based on distances
     min = MPmin
     Bins = MPBins
-
-    '''
-    #Working on having the number of bins be an input into the function
-    df_mpN = []
-    for i in range(0,numBin):
-    '''
 
     df_mp1 = df_mp[df_mp["Distance"] < min+Bins]
     df_mp2 = df_mp[(df_mp["Distance"] > min+Bins) &
@@ -583,7 +580,6 @@ def plot_boundary_locations_solar_distance(df):
                    (df_mp["Distance"] < min+4*Bins)]
 
     # Dividing BS into 4 distance regions
-    # number of bins
     numBin = 4
     BSmin = df_bs["Distance"].min()
     BSmax = df_bs["Distance"].max()
@@ -713,8 +709,14 @@ def plot_boundary_locations_solar_distance(df):
     ax1.legend(fontsize="8")
 
 
-def plot_boundary_over_year(df, EndYrs, StartYrs=0):
-
+def plot_boundary_over_year(df, EndYrs=18, StartYrs=0):
+    '''  Plots X_MSM', rho_MSM', and distance from the 
+    sun as a function of Mercury years since the start date.
+    Inputs:
+    df -- crossing list data frame
+    EndYrs -- Mercury years from the first measurement to plot to
+    StartYrs -- Mercury years from the first measurement to plot from
+    '''
     array = ["mp_in", "mp_out"]
     # Make new list with only mp data
     df_mp = df.loc[df['Type'].isin(array)]
@@ -763,7 +765,9 @@ def plot_boundary_over_year(df, EndYrs, StartYrs=0):
 
 def plot_distance_from_nominal(df):
     '''
-    Function to plot the measured magnetopause distance from the nominal magnetopause obtained by Winslow et al., 2013  
+    Function to plot the measured magnetopause distance from 
+    the nominal magnetopause obtained by Winslow et al., 2013.
+    df -- crossing list data frame 
     '''
     df_mp = df[((df.Type == 'mp_in') | (df.Type == 'mp_out'))]
 
@@ -804,7 +808,7 @@ def plot_distance_from_nominal(df):
     mean_x = mean_x.values
     r_msm = r_msm.values
 
-    # finding the distance drom the nominal
+    # Finding the distance drom the nominal
     mindist = []
     for i in range(0, len(mean_x)):
         dist = []
@@ -831,7 +835,7 @@ def plot_distance_from_nominal(df):
 
     fig, axs = plt.subplots(2, sharex=True)
 
-    # Now plot mindist versus time Look @ slack to see how to plot datetime
+    # Now plot mindist versus time
     time = df_mp["AvgDate"]
     distance = df_mp["Distance"].astype(float)
 
@@ -850,8 +854,12 @@ def plot_distance_from_nominal(df):
 
 def mag_time_series(date_string, res="01", full=False, FIPS=False):
     '''
-    Plot timeseries of B fields in 3-axis with 2015 mag data
-    WIP: to add ability to select start and end time
+    Plot timeseries of B fields in 3-axis
+    Inputs:
+    date_string -- Date of interest 
+    res -- resolution of data in seconds (options 01, 05, 10, 60)
+    full -- 
+    FIPS -- Not functional
     '''
 
     time, mag, magamp, eph = load_messenger_mag.load_MESSENGER_into_tplot(
@@ -887,6 +895,11 @@ def mag_time_series(date_string, res="01", full=False, FIPS=False):
 def all_mag_time_series(date_string, res="01", full=False, FIPS=False):
     '''
     Function to plot all B fields for a given time on one plot
+    Inputs:
+    date_string -- Date of interest 
+    res -- resolution of data in seconds (options 01, 05, 10, 60)
+    full -- 
+    FIPS -- Not functional
     '''
 
     time, mag, magamp, eph = load_messenger_mag.load_MESSENGER_into_tplot(
@@ -907,11 +920,22 @@ def all_mag_time_series(date_string, res="01", full=False, FIPS=False):
 # Breaking lists into 2 dif types, identifying difference betweem starts
 # times and ploting histogram
 def compare_lists(df, df_p, plot=False):
+    ''' Connects every Sun crossing to the closest temporal Philpott crossing
+    Order important as Sun list shorter
+    Inputs:
+    df -- Sun crossing data frame
+    df_p -- Philpott crossing data frame
+    plot -- plot histogram of difference in start times of partnered crossings (default = False)  
+    
+    Outputs:
+    Paired bowshock and magnetopause data frames
+    '''
 
     # df = df[df.index > 14800]
     # df_p = df_p[df_p.index < 1600]
 
     def split(df):
+        ''' Split crossing list into magnetopause and bowshock crossings'''
         df_mp = df[(df.Type == 'mp_in') | (df.Type == 'mp_out')]
         df_bs = df[(df.Type == 'bs_in') | (df.Type == 'bs_out')]
         return df_mp, df_bs
@@ -920,6 +944,7 @@ def compare_lists(df, df_p, plot=False):
     df_p_mp, df_p_bs = split(df_p)
 
     def find_partner(df, df_p):
+        ''' Finds closest temporal crossing in Philpott list to given Sun crossing'''
         min_start = []
         min_end = []
         min_diff = []
@@ -949,12 +974,12 @@ def compare_lists(df, df_p, plot=False):
 
         df.loc[df.index.isin(x), 'Flag'] = 1
 
-        # Set 'Flag' to 2 where 'startDif' is greater than or equal to 3600
+        # Set 'Flag' to 2 where 'startDif' is greater than or equal to 3600 seconds
         df.loc[df['startDif'] >= 3600, 'Flag'] = 2
         extreme_count = df.loc[df.Flag == 2, 'Flag'].count()
         print("EXTREME:", extreme_count)
 
-        # Set 'Flag' to 3 when orbit disagrees by just a few minutes (10 minutes)
+        # Set 'Flag' to 3 when orbit disagrees by just a few minutes (<10 minutes)
         df.loc[(df['startDif'] >= 600) & (df['Flag'] == 1), 'Flag'] = 3
 
         return df
@@ -977,12 +1002,16 @@ def compare_lists(df, df_p, plot=False):
 
     return df_part_bs, df_part_mp
 
+
 # Check where crossings have no overlap looking at partner list created above
-
-
-def crossing_disagree(df, t):
-
-    # df is partnered list, t is max time diff between crossing pair in seconds
+def crossing_disagree(df, t, n=10):
+    ''' Finds the time difference between partner crossings and 
+    returns a data frame of the n largest.
+    Inputs:
+    df -- partner data frames from output of compare_lists()
+    t -- the largest time difference between partners of interest in seconds
+    n -- Number of largest differences interested in (default n=10)
+    '''
     x = df.index[~(((df['start'] >= df['startP'])
                     & (df['start'] <= df['endP'])) | ((df['end'] >= df['startP'])
                                                       & (df['end'] <= df['endP'])) | ((df['startP'] >= df['start'])
@@ -1003,7 +1032,7 @@ def crossing_disagree(df, t):
     print(len(df))
     df = df.loc[df['AvgDateDiff'] < t]
     print(len(df))
-    largest10 = df.nlargest(10, 'AvgDateDiff')
+    largest10 = df.nlargest(n, 'AvgDateDiff')
 
     return largest10[['start', 'end', 'startP', 'endP', 'AvgDateDiff']]
 
@@ -1032,8 +1061,8 @@ def orbits_without_bs(df):
 
 
 def crossing_duration(df, df_sun, seperate=False):
-    '''Plotting histograms of MP crossing intervals
-    Inputs
+    '''Plotting histograms of magnetopause crossing intervals
+    Inputs:
     df -- philpott crossings dataframe
     df_sun -- Sun crossings dataframe
     seperate -- when true seperates histograms into in and out bound crossings (boolean, Default = False)
@@ -1049,13 +1078,13 @@ def crossing_duration(df, df_sun, seperate=False):
         df2_mp_in = df_sun[(df_sun.Type == 'mp_in')]
         df2_mp_out = df_sun[(df_sun.Type == 'mp_out')]
 
-        plt.hist(df_mp_in.Interval, bins, alpha=0.5, label=f'p_mp_in: n = {
-                 len(df_mp_in)}', color='k', histtype='step')
+        plt.hist(df_mp_in.Interval, bins, alpha=0.5, 
+                 label=f'p_mp_in: n = {len(df_mp_in)}', color='k', histtype='step')
         plt.hist(df_mp_out.Interval, bins, alpha=0.5,
                  label=f'p_mp_out: n = {len(df_mp_out)}', color='b')
-        plt.hist(df2_mp_in.Interval, bins, alpha=0.5, label=f'sun_mp_in: n = {
-                 len(df2_mp_in)}', color='darkred', histtype='step')
-        plt.hist(df2_mp_out.Interval, bins, alpha=0.5,
+        plt.hist(df2_mp_in.Interval, bins, alpha=0.5, 
+                 label=f'sun_mp_in: n = {len(df2_mp_in)}', color='darkred', histtype='step')
+        plt.hist(df2_mp_out.Interval, bins, alpha=0.5, 
                  label=f's_mp_out: n = {len(df2_mp_out)}', color='yellow')
         plt.legend()
         plt.yscale('log')
@@ -1066,8 +1095,8 @@ def crossing_duration(df, df_sun, seperate=False):
         df_sun_mp = df_sun[(df_sun.Type == 'mp_in') |
                            (df_sun.Type == 'mp_out')]
         ymax = df_sun.Interval.max()
-        plt.hist(df_mp.Interval, bins, alpha=0.5, label=f'p_mp: n = {
-                 len(df_mp)}', color='k', histtype='step')
+        plt.hist(df_mp.Interval, bins, alpha=0.5, 
+                 label=f'p_mp: n = {len(df_mp)}', color='k', histtype='step')
         plt.hist(df_sun_mp.Interval, bins, alpha=0.5,
                  label=f'sun_mp: n = {len(df_sun_mp)}', color='red')
         mean_p = df_mp.Interval.mean()
@@ -1085,43 +1114,33 @@ def crossing_duration(df, df_sun, seperate=False):
 
 # Returns an array of number of crossings per orbit and any
 # orbits with crossings !=4. Need to run df through orbits first
-
-#!!! Not fully working, come back to this!!!
-
 def orbit_crossings(df):
-    '''Function to count orbits without 4 crossings
-    Input
+    '''Function that returns number of orbits without 4
+    crossings and dataframe of those orbits
+    Input:
     df -- dataframe
     '''
-    # weird_orbit = []
-    # j=0
-    # orbit_counts = df.loc[df['Orbit'].value_counts()!=4,df['Orbit']]
-    # print(orbit_counts)
     NumCrossings = []
     counter = 0
-    for i in range(1, len(df.index)):
-        if df.Orbit[i] != df.Orbit[i-1]:
-            NumCrossings.append(counter)
-            counter = 0
-            counter += 1
-        else:
-            counter += 1
+    for i in df['Orbit'].unique():
+        num=len(df.loc[df['Orbit'] == i])
+        NumCrossings.append(num)
     NumCrossings = np.asarray(NumCrossings)
     # Print orbit number where there is not 4 crossings
     weird_crossings = np.where(NumCrossings != 4)
     print(len(weird_crossings[0]))
     return NumCrossings, weird_crossings
 
-
 def time_in_sheath(df, df_sun):
-    '''Histogram of time in sheath durations: run df through orbits first
-    Inputs
+    '''Histogram of duration of time in sheath for each crossing 
+    Inputs:
     df -- Philpott crossing dataframe
     df_sun -- Sun crossing dataframe
     '''
     # mp_out(end)-bs_out(start)
     # bs_in(end)-mp_in(start)
 
+    # Function to find duration of time in Sheath for inbound and outbound
     def sheath(df):
         Dur_out = []
         Dur_in = []
@@ -1131,7 +1150,9 @@ def time_in_sheath(df, df_sun):
             elif df.Type[i] == 'bs_in' and df.Type[i+1] == 'mp_in':
                 Dur_in.append((df.start[i+1]-df.end[i]).total_seconds())
         return Dur_in, Dur_out
+    # Philpott crossings
     Dur_in_p, Dur_out_p = sheath(df)
+    # Sun crossings
     Dur_in_s, Dur_out_s = sheath(df_sun)
     bins = 100
     plt.hist(Dur_in_p, bins=bins, alpha=0.5,
@@ -1150,7 +1171,7 @@ def time_in_sheath(df, df_sun):
 
 def save_largest(df, sun=False, philpott=False):
     '''
-    Save the timeseries for the 10 longest crossings
+    Save the timeseries for the 10 longest crossing durations
     Inputs
     df -- crossings dataframe
     sun -- If true plots crossing lines identified by Sun (boolean, default = False)
@@ -1181,9 +1202,8 @@ def save_largest(df, sun=False, philpott=False):
                 start_date=start_time[i], end_date=end_time[i], philpott=True, save=True, num=i)
 
 
-# combining all 60 second resolution data into one .csv file with 6 min resolution to find orbits
 
-
+# combining all 60 second resolution data into one .csv file to find orbits
 def find_tab_files(root_dir):
     """Recursively find all .TAB files in root_dir and its subdirectories."""
     tab_files = []
@@ -1205,7 +1225,6 @@ def combine_tab_files(tab_files, output_file):
 
     # Concatenate all the data arrays
     combined_data = np.concatenate(combined_data)
-    # combined_data=np.sort(combined_data)
     # Save to a new CSV file
     np.savetxt(output_file, combined_data, delimiter=',')
 
@@ -1219,8 +1238,8 @@ def read_in_all():
     df = pd.read_csv('all.csv', header=None)
     df.columns = ['year', 'day_of_year', 'hour', 'minute', 'second', 'col6', 'col7',
                   'eph_x', 'eph_y', 'eph_z', 'col11', 'col12', 'col13', 'col14', 'col15', 'col16']
+    
     # Combine the time components into a single datetime column
-
     def combine_time_components(row):
         year = int(row['year'])
         day_of_year = int(row['day_of_year'])
@@ -1258,18 +1277,19 @@ def read_in_all():
 
 def orbit(df_all, df_crossing):
     ''' Adds orbit number to crossing list dataframes
-    Inputs
+    Inputs: 
     df_all -- dataframe containing ephemeris
             data at a 10 minute resolution obtained from "df_all=read_in_all()"
     df_crossing -- dataframe containing crossing data
     '''
-
+    # Finding radial distance 
     r_all = np.sqrt(df_all.eph_x.to_numpy()**2 + df_all.eph_y.to_numpy()**2 +
                     df_all.eph_z.to_numpy()**2)
 
+    # Finding the minima of radial distance and calling min-to-min 1 orbit 
     peaks = find_peaks(-r_all, distance=36)
-    orbits = 0
-    df_crossing['Orbit'] = len(peaks[0]-1)
+    orbits = 1
+    df_crossing['Orbit'] = 0
     for p in tqdm.tqdm(range(len(peaks[0])-1)):
         orbit_range = [peaks[0][p], peaks[0][p+1]]
         time_range = [df_all.Time.iloc[orbit_range[0]],
@@ -1277,14 +1297,17 @@ def orbit(df_all, df_crossing):
         df_crossing.loc[(df_crossing['start'] <= time_range[1]) & (
             df_crossing['start'] >= time_range[0]), 'Orbit'] = int(orbits)
         orbits += 1
-    print(df_crossing)
+    orbit_range = [peaks[0][-1]]
+    time_range = [df_all.Time.iloc[orbit_range[0]]]
+    df_p.loc[df_p['start'] >= time_range[0], 'Orbit'] = int(orbits)
+
     return df_crossing
 
 
 def sign_change_count(df):
-    '''Function to count the number of sign changes in a df column.
+    '''Function to count the number of sign changes in a df column, to count rotations
     Input
-    df -- dataframe column such a df[mag_x] 
+    df -- dataframe column such a df['mag_x'] 
     '''
     changes = 0
     prev = df.values[0]/abs(df.values[0])
@@ -1302,7 +1325,7 @@ def sign_change_count(df):
 def analyse_mp_crossings_sheath(df, n=10, largest=True):
     ''' Function to add mean, standard deviation, and number of rotations in the
     magentosheath to the crossing dataframe
-    Input
+    Input:
     df -- crossing dataframe
     n -- number of crossings considered (int, default = 10)
     largest -- Looking at n largest crossings, if False looks at smallest (boolean, default = True) 
@@ -1366,14 +1389,13 @@ def analyse_mp_crossings_sheath(df, n=10, largest=True):
 
     return df
 
+
 # Histograms of Bx in MP, MSheath, and MSphere
-
-
 def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timeseries=True, splitDistro=False, dayside=False, RMS='total'):
     '''Plot histograms of B_x in Magnetopause, Magnetosheath and Magnetosphere
     Fits a double Gaussian to identify crossing location, Magnetosheath and Magnetosphere
     during crossing interval
-    Inputs
+    Inputs:
     df -- Dataframe of crossings
     n -- Number of largest crossings to be considered (int, default = 1)
     minute -- Amount of minutes considered each side of crossing (int, default = 5)
@@ -1383,6 +1405,7 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
     timeseries -- plot time series for crossing (boolean, default = True)
     splitDistro -- plot a histogram of the split location 
     dayside -- True plots only dayside crossings (boolean, default = False)
+    RMS -- Plots the RMS of the selected orientation (string, default = 'total', options = 'x','y','z') 
     '''
     from scipy.optimize import curve_fit
 
@@ -1423,11 +1446,11 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
             y, x, _ = plt.hist(df_info['mag_x'].values, density=True, bins=bins, label=f'Orbit = {
                                df.loc[i, 'Orbit']}')
 
-            # y= y-np.mean(y)+10
             # Peaks must be 5 bins away from eachother to count
             dis = 5*((df_info['mag_x'].max() - df_info['mag_x'].min())/bins)
             prom = 0.01
 
+            # Finding peaks that match params if 2 or more 
             if len(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[0]) >= 2:
                 print('BIMODAL')
                 bimodal = True
@@ -1459,7 +1482,7 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                 split = (
                     x_fit[find_peaks(-DoubleGaussian(x_fit, *params))[0][0]])
                 split_middle.append(split)
-                # Code to define split where equal std from both peaks
+                # Code to define split where std is equal from both peaks
                 if params[0] < params[3]:
                     peak1 = params[0]
                     sigma1 = params[1]
@@ -1489,7 +1512,8 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                 plt.legend()
                 plt.savefig(f'Images/Distro_mp_{i}.png')
                 plt.show()
-
+            
+            # Less strict parameter if 2 or more peaks were not already found
             elif len(find_peaks(y, height=0.005, prominence=0.001, distance=dis)[0]) >= 2:
                 print('BIMODAL RELAXED')
                 bimodal = True
@@ -1561,6 +1585,7 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                 plt.show()
                 bimodal = True
 
+            # If two or more peaks were not found in either case, look for 1
             else:
                 # bimodal = False
                 bimodal = True
@@ -1568,7 +1593,7 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                 A = np.sort(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[
                             1]['peak_heights'])[-1:]
 
-                # Finding corrresponding x position of the two tallest peaks
+                # Finding corrresponding x position of the tallest peak
                 x1 = np.where(find_peaks(y, height=np.mean(y), prominence=prom, distance=dis)[
                               1]['peak_heights'] == A)[0][0]
                 x1 = find_peaks(y, height=np.mean(
@@ -1614,12 +1639,12 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                          label=f'Orbit = {df.loc[i, 'Orbit']}')
                 plt.ylabel('Number of Measurements')
                 if df.loc[i, 'Type'] == 'mp_in':
-                    plt.title(f'Magnetosheath {
-                              minute} minutes before MP interval for inbound')
+                    plt.title(f'Magnetosheath 
+                            {minute} minutes before MP interval for inbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 else:
-                    plt.title(f'Magnetosphere {
-                              minute} minutes before MP interval for outbound')
+                    plt.title(f'Magnetosphere 
+                            {minute} minutes before MP interval for outbound')
                     plt.xlabel('$B_x$ in magnetosphere')
                 plt.legend()
             # plt.savefig('Before_MP.png')
@@ -1640,12 +1665,12 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                          label=f'Orbit = {df.loc[i, 'Orbit']}')
                 plt.ylabel('Number of Measurements')
                 if df.loc[i, 'Type'] == 'mp_in':
-                    plt.title(f'Magnetosphere {
-                              minute} minutes after MP interval for inbound')
+                    plt.title(f'Magnetosphere 
+                            {minute} minutes after MP interval for inbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 else:
-                    plt.title(f'Magnetosheath {
-                              minute} minutes after MP interval for outbound')
+                    plt.title(f'Magnetosheath 
+                            {minute} minutes after MP interval for outbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 plt.legend()
                 # plt.savefig('After_MP.png')
@@ -1659,6 +1684,7 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
             Bamp = df_info['magamp']
             x = df_info['Time']
             y = df_info['mag_x']
+            # Colour coding magnetosheath, magnetosphere and magnetopause
             if df.loc[i, 'Type'] == 'mp_in':
                 Sheath = np.ma.masked_where(x > df.loc[i, 'start'], x)
                 Sphere = np.ma.masked_where(x < df.loc[i, 'end'], x)
@@ -1737,8 +1763,8 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
             time_int = int(time_win/2)
             if RMS == 'x':
                 Bamp = y
-                ax4.set_ylabel(f'RMS of $B_x$ \n averaging over {
-                               time_win} seconds')
+                ax4.set_ylabel(f'RMS of $B_x$ \n averaging over 
+                                {time_win} seconds')
             else:
                 ax4.set_ylabel(f'RMS of $|B|$ \n averaging over {
                                time_win} seconds')
@@ -1860,6 +1886,9 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
 def spatial_box_plot(df_crossing, orient='x'):
     ''' Plot box plots of spatial position versus crossing duration
     Crossings duration split into 4 equally sized bins
+    Inputs:
+    df_crossing -- crossings data frame  
+    orient -- spatial dimension being plotted (string, default = 'x', options = 'y','z','all')
     '''
     df = df_crossing
     df['Interval'] = (df.end-df.start).dt.total_seconds()
@@ -1911,6 +1940,11 @@ def spatial_box_plot(df_crossing, orient='x'):
 
 
 def add_type_to_all(df_all, df_crossing):
+    ''' Adds type inforation to df_all, i.e. if in magnetosheath, or magnetoshere
+    Inputs:
+    df_all -- data frame containing containting time of mission
+    df_crossing -- crossing list data frame 
+    '''
     counter = 0
     df_all['Type'] = 'None'
     for i in tqdm.tqdm(df_crossing['Orbit'].unique()):
@@ -1953,21 +1987,30 @@ def add_type_to_all(df_all, df_crossing):
             df_all.loc[(df_all['Time'] > start) & (
                 df_all['Time'] < end), 'Type'] = 'Sphere'
 
-    print(f"\n Orbits with sphere {
-          counter}/{len(df_crossing['Orbit'].unique())}")
+    print(f"\n Orbits with sphere {counter}/{len(df_crossing['Orbit'].unique())}")
     return df_all
 
-# df_info = pd.read_pickle("df_info_all.pkl")
+'''
+# Code to read in df_info data frame if previous saved as pickle file
+df_info = pd.read_pickle("df_info_all.pkl")
+'''
+
 
 
 def spatial_binning_orbits(df_info, df_crossing, add_type=False, plot_time_hist=False):
-    ''' Function to bin sheath and sphere into 4 areas
-    1) Add marker to df_info to identify when in sheath and sphere
-    2) Create different regions to bin crossings
+    ''' Function to bin magntosheath and magnetosphere into 4 areas x-z and y-z orbits
+    split into positive and negative x and y. Then plot histograms of mag distributions
+    Inputs:
+    df_info -- data frame containing ephemeris and mag data at 1 second resolution for entire mission
+    df_crossing -- crossing list data frame 
+    add_type -- adds when in magnetosheath and magnetosphere to df_info, else loads in pickle with info (boolean, default = False)
+    plot_time_hist -- plots histogram distribution of sheath and sphere over entire mission (boolean, default = False)
     '''
 
     if add_type == True:
         df_info = add_type_to_all(df_info, df_crossing)
+    else:
+        df_info = pd.read_pickle("df_info_type.pickle")
 
     df_all_sheath = df_info[(df_info.Type == 'Sheath')]
     df_all_sphere = df_info[(df_info.Type == 'Sphere')]
@@ -1991,11 +2034,6 @@ def spatial_binning_orbits(df_info, df_crossing, add_type=False, plot_time_hist=
     label = ['x-z orbit \n & x <= 0', 'y-z orbit \n & y > 0',
              'x-z orbit \n & x > 0', 'y-z orbit \n & y <= 0']
 
-    # bin1 = df_all_sheath[(df_all.ephx >= 0)&(df_all.ephy >= 0)]
-    # bin2 = df_all_sheath[(df_all.ephx >= 0)&(df_all.ephy < 0)]
-    # bin3 = df_all_sheath[(df_all.ephx < 0)&(df_all.ephy >= 0)]
-    # bin4 = df_all_sheath[(df_all.ephx < 0)&(df_all.ephy < 0)]
-    # label = ['x >= 0 & y >= 0','x >= 0 & y < 0','x < 0 & y >= 0','x < 0 & y < 0']
     if plot_time_hist == True:
         bin1, bin2, bin3, bin4 = binning(df_all_sphere)
         counts = [len(bin1), len(bin2), len(bin3), len(bin4)]
@@ -2017,14 +2055,19 @@ def spatial_binning_orbits(df_info, df_crossing, add_type=False, plot_time_hist=
     xz1_sheath, yz1_sheath, xz2_sheath, yz2_sheath = binning(df_all_sheath)
     xz1_sphere, yz1_sphere, xz2_sphere, yz2_sphere = binning(df_all_sphere)
 
-    # parsed_datetime_s = datetime.datetime.strptime(str(df_all['Time'].min()), "%Y-%m-%d %H:%M:%S")
-    # start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
-    # parsed_datetime_e = datetime.datetime.strptime(str(df_all['Time'].max()), "%Y-%m-%d %H:%M:%S")
-    # end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
-    # print(start_str,end_str)
+    '''
+    # Code to save all ephemeris, mag, and time data at 1 second resolution to a pickle file
+    
+    parsed_datetime_s = datetime.datetime.strptime(str(df_all['Time'].min()), "%Y-%m-%d %H:%M:%S")
+    start_str = parsed_datetime_s.strftime("%Y-%m-%d-%H-%M-%S")
+    parsed_datetime_e = datetime.datetime.strptime(str(df_all['Time'].max()), "%Y-%m-%d %H:%M:%S")
+    end_str = parsed_datetime_e.strftime("%Y-%m-%d-%H-%M-%S")
+    print(start_str,end_str)
 
-    # df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
-    # df_info.to_pickle("df_info_all.pkl")
+    df_info = mag.mag_time_series(start_date=start_str,end_date=end_str,plot=False)
+    df_info.to_pickle("df_info_all.pkl")
+    '''
+
 
     def hist(bin, title):
 
@@ -2049,6 +2092,21 @@ def spatial_binning_orbits(df_info, df_crossing, add_type=False, plot_time_hist=
         plt.savefig(f'{var_name}.png')
         plt.show()
 
+        fig, ax = plt.subplots()
+
+        # hide axes
+        fig.patch.set_visible(False)
+        ax.axis('off')
+        ax.axis('tight')
+
+        df = pd.DataFrame([[round(bin['mag_x'].min(),2),round(bin['mag_x'].max(),2) , round(bin['mag_x'].median(),2)], [round(bin['mag_y'].min(),2),round(bin['mag_y'].max(),2) , round(bin['mag_y'].median(),2)], [round(bin['mag_z'].min(),2),round(bin['mag_z'].max(),2) , round(bin['mag_z'].median(),2)],[round(bin['magamp'].min(),2),round(bin['magamp'].max(),2) , round(bin['magamp'].median(),2)]], index=['B_x','B_y','B_z','|B|'],columns=['min (nT)','max (nT)','median (nT)'])
+
+        ax.table(cellText=df.values, colLabels=df.columns,rowLabels=df.index,loc='center')
+
+        fig.tight_layout()
+        fig.savefig(f'Table_{var_name}.png')
+        plt.show()
+
     hist(xz1_sheath, 'xz1_sheath')
     hist(yz1_sheath, 'yz1_sheath')
     hist(xz2_sheath, 'xz2_sheath')
@@ -2060,11 +2118,11 @@ def spatial_binning_orbits(df_info, df_crossing, add_type=False, plot_time_hist=
 
     # plt.hist(xz1_sheath['mag_x'])
 
-
+#!!!Plot may be flipped, need check if dawn side is switched with day side !!! 
 def residence_plot(df_info, first_time=False):
-    ''' Polar residence plot of percentage Sheath and Sphere around Mercury
+    ''' Polar residence plot of percentage time in sphere compared to Sheath around Mercury
     Inputs:
-    df_info -- dataframe containing eph data
+    df_info -- dataframe containing ephemeris data
     first_time -- When true adds sheath and sphere label to df_info, must be true for first run
     '''
     import matplotlib.colors as mcolors
@@ -2075,7 +2133,7 @@ def residence_plot(df_info, first_time=False):
     # df_info.to_pickle("df_info_type.pickle")
 
     df_info = pd.read_pickle("df_info_type.pickle")
-    df = df_info
+    df = df_info.loc[(df_info['Type'] == 'Sheath') | (df_info['Type']=='Sphere')]
 
     # Calculate angles
 
@@ -2089,8 +2147,8 @@ def residence_plot(df_info, first_time=False):
         df['angle'] < 0, df['angle'] + 2 * np.pi, df['angle'])
 
     # Number of bins
-    num_bins_angle = 12
-    num_bins_radius = 5
+    num_bins_angle = 36
+    num_bins_radius = 20
 
     # Binning the data
     bins_angle = np.linspace(0, 2 * np.pi, num_bins_angle + 1)
@@ -2103,7 +2161,7 @@ def residence_plot(df_info, first_time=False):
         df['r'], bins=bins_radius, labels=False, include_lowest=True)
 
     bin_counts = np.zeros((num_bins_radius, num_bins_angle))
-    sheath_counts = np.zeros((num_bins_angle, num_bins_angle))
+    sheath_counts = np.zeros((num_bins_radius, num_bins_angle))
     sphere_counts = np.zeros((num_bins_radius, num_bins_angle))
 
     if first_time == True:
@@ -2114,7 +2172,6 @@ def residence_plot(df_info, first_time=False):
             if row['Type'] == 'Sheath':
                 sheath_counts[r_bin, a_bin] += 1
             elif row['Type'] == 'Sphere':
-
                 sphere_counts[r_bin, a_bin] += 1
         print(sphere_counts)
         print(sheath_counts)
@@ -2126,13 +2183,13 @@ def residence_plot(df_info, first_time=False):
         sphere_counts = np.load('Sphere_counts.npy')
         sheath_counts = np.load('Sheath_counts.npy')
 
-    print('Sheath \n', sheath_counts)
-    print('Sphere \n', sphere_counts)
+    print('Sheath', np.shape(sheath_counts))
+    print('Sphere', np.shape(sphere_counts))
+    print('Bins', np.shape(bin_counts))
     # Calculate percentage spheres of bin sphere/total
     percent_sphere = np.zeros_like(bin_counts, dtype=float)
     nonzero_mask = bin_counts > 0
-    percent_sphere[nonzero_mask] = sphere_counts[nonzero_mask] / \
-        bin_counts[nonzero_mask]
+    percent_sphere[nonzero_mask] = sphere_counts[nonzero_mask]/bin_counts[nonzero_mask]
     percent_sphere[~nonzero_mask] = np.nan  # Assign NaN to bins with no data
 
     # Mask the bins with no data
@@ -2149,14 +2206,14 @@ def residence_plot(df_info, first_time=False):
     r, theta = np.meshgrid(bins_radius, bins_angle)
 
     # Plot data using pcolormesh
-    c = ax.pcolormesh(theta, r, masked_percent_sphere.T,
-                      cmap=cmap, shading='auto')  # , edgecolors='k')
+    c = ax.pcolor(theta, r, masked_percent_sphere.T,
+                      cmap=cmap, shading='flat')  # , edgecolors='k')
 
-    fig.colorbar(c, ax=ax, orientation='vertical')
+    cbar = fig.colorbar(c, ax=ax, orientation='vertical') 
+    cbar.set_ticks(ticks=[ 0, 0.5,1], labels=['100% Sheath', '50%', '100% Sphere'])
 
     # Add title
-    ax.set_title(
-        "Polar Plot with Non-Rectangular Bins for 'Sheath' and 'Sphere'")
+    ax.set_title('Spatial distrabution of magnetosphere compared to magnetosheath')
 
     ax.set_xticks(np.linspace(0, 4 * np.pi/2, 13))
     ax.set_xticklabels(['12', '14', '16', '18', '20', '22',
@@ -2164,297 +2221,5 @@ def residence_plot(df_info, first_time=False):
 
     ax.set_yticks(np.linspace(1, 5.0, 5))
     ax.set_yticklabels(['1 $R_M$', '2 $R_M$', '3 $R_M$', '4 $R_M$', '5 $R_M$'])
+    fig.savefig('PolarSpatial.png')
     plt.show()
-
-    # ax2.set_xticks(np.linspace(0, 4 * np.pi/2, 13))
-    # ax2.set_xticklabels(['12','14','16','18','20','22','0','2','4','6','8','10','12'])
-
-    # #ax.set_title("Polar Residence Plot Time Spent in 'Sheath' and 'Sphere'")
-
-    # plt.show()
-
-
-# \/ Charlies code for polar histograms \/
-
-def create_lobe_quartile_p():
-    '''
-    Function to generate and save the residence and magnetic field distribution of lobe fields
-    Takes in the Lobe Data dataframe to as an input
-    This returns the polar version of the residence plots, not the Cartesian
-    Returns
-    -------
-    Creates mesh_mag,mesh_eph,mesh_count which is used in the polar plots for spatial residence
-    and distribution of magnetic fields
-    '''
-    import pandas as pd
-    import datetime
-    import numpy as np
-    # Load in a pandas dataframe with all of the lobe magnetic field data and position
-    Lobe_Data = pd.read_pickle("df_info_all.pkl")
-    # Specify the number of bins in theta and r
-    sc = 30
-    sc2 = 60
-    # Specify range in Z to consider
-    pos_z = [-4, .5]
-    # mesh goes r, theta, z, mag
-    mesh_mag = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
-    count = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0]))
-    mesh_eph = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
-    mesh_amp_up = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
-    mesh_amp_lp = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
-    mesh_sB = np.zeros((sc+1, sc2+1, np.shape(pos_z)[0], 3))
-    # Specify how far in r and theta you want to go
-    distance = 5.0
-    pos_r = np.arange(sc+1)*distance/(sc)
-    distance_theta = np.pi
-    pos_theta = np.arange(sc2+1)*distance_theta/(sc2/2)-distance
-    ephx = Lobe_Data.eph_x
-    ephy = Lobe_Data.eph_y
-    ephz = Lobe_Data.eph_z
-    # Define Theta and r for ephemeris data
-    theta_d = np.arctan2(ephy, ephx)
-    r = np.sqrt(ephy**2+ephx**2)
-    magx = Lobe_Data.mag_x
-    magy = Lobe_Data.mag_y
-    magz = Lobe_Data.mag_z
-    magamp = np.sqrt(magx**2+magy**2+magz**2)
-    # Create shifted positions to search for data within the bins
-    r_pos_r = np.roll(pos_r, -1)
-    r_pos_theta = np.roll(pos_theta, -1)
-    r_pos_z = np.roll(pos_z, -1)
-    for rr in tqdm.tqdm(range(np.size(pos_r))):
-        print(rr/np.size(pos_r))
-        for tt in range(np.size(pos_theta)):
-            for zz in range(np.size(pos_z)):
-                gd_a = np.where((r > pos_r[rr]) & (r < r_pos_r[rr]) &
-                                (theta_d > pos_theta[tt]) & (theta_d < r_pos_theta[tt]) &
-                                (ephz > pos_z[zz]) & (ephz < r_pos_z[zz]))[0]
-                if np.size(gd_a) > 0:
-                    l = gd_a[0]
-                    # Reassign variable to x,y,z to help keep it straight
-                    x = rr
-                    y = tt
-                    z = zz
-                    magx_gd = magx.iloc[gd_a]
-                    magy_gd = magy.iloc[gd_a]
-                    magz_gd = magz.iloc[gd_a]
-                    ephx_gd = ephx.iloc[gd_a]
-                    ephy_gd = ephy.iloc[gd_a]
-                    ephz_gd = ephz.iloc[gd_a]
-                    magamp_gd = magamp.iloc[gd_a]
-                    sB_gd = Lobe_Data.scaled_B.iloc[gd_a]
-                    mesh_mag[x, y, z, 0] = np.mean(magx_gd)
-                    mesh_sB[x, y, z, 0] = np.mean(sB_gd)
-                    mesh_mag[x, y, z, 1] = np.mean(magy_gd)
-                    mesh_mag[x, y, z, 2] = np.mean(magz_gd)
-                    count[x, y, z] = np.size(magz_gd)
-                    mesh_eph[x, y, z, 0] = np.mean(ephx_gd)
-                    mesh_eph[x, y, z, 1] = np.mean(ephy_gd)
-                    mesh_eph[x, y, z, 2] = np.mean(ephz_gd)
-                    mesh_amp_up[x, y, z] = np.percentile(magamp_gd, 75)
-                    mesh_amp_lp[x, y, z] = np.percentile(magamp_gd, 25)
-    # Save meshes as npy files to call in the plot_lobe_mesh_polar function
-    np.save('mesh_lobe_up_TEST.npy', mesh_amp_up)
-    np.save('mesh_lobe_lp_TEST.npy', mesh_amp_lp)
-    np.save('mesh_lobe_p_TEST.npy', mesh_mag)
-    np.save('count_lobe_p_TEST.npy', count)
-    np.save('mesh_eph_p_TEST.npy', mesh_eph)
-    np.save('mesh_sB_p_TEST.npy', mesh_sB)
-    np.save('pos_r_TEST.npy', pos_r)
-    np.save('pos_theta_TEST.npy', pos_theta)
-
-
-# Function 2: Plotting the mesh in polar coordinates:
-def plot_lobe_mesh_polar():
-    '''
-    Generate polar magnetic field plots from mesh_lobe and count_lobe to make a map of lobe field strength
-    in polar coordinates
-    '''
-    # Generate polar plots of magnetic field and flaring angle
-    import numpy as np
-    import matplotlib.pyplot as plt
-    # for i in range(np.size(mesh[0,0,:,0])):
-    i = 0
-    pos_r = np.load('pos_r_TEST.npy')
-    pos_theta = np.load('pos_theta_TEST.npy')
-    mesh = np.load('mesh_lobe_p_TEST.npy')
-    count = np.load('count_lobe_p_TEST.npy')
-    mesh_eph = np.load('mesh_eph_p_TEST.npy')
-    fig, axs = plt.subplots(1, 1, subplot_kw=dict(projection='polar'))
-    mx = mesh[:, :, 0, 0]
-    my = mesh[:, :, 0, 1]
-    mz = mesh[:, :, 0, 2]
-    mesh_amp = np.sqrt(mesh[:, :, :, 0]**2 +
-                       mesh[:, :, :, 1]**2+mesh[:, :, :, 2]**2)
-    ma = mesh_amp[:, :, 0]
-
-    def format_polar_plots(axis):
-        axis.set_xlim(np.pi/2, 3*np.pi/2)
-        axis.set_xticks(np.linspace(np.pi/2, 3 * np.pi/2, 7))  # Set 6 ticks
-        axis.set_xticklabels(['18', '20', '22', '0', '2', '4', '6'])
-        axis.set_ylim(0, 4.5)
-        axis.set_ylim(0, 4.5)
-        axis.set_ylim(0, 4.5)
-        axis.set_yticks(np.linspace(1, 4.0, 4))
-        axis.set_yticklabels(['1 $R_M$', '2 $R_M$', '3 $R_M$', '4 $R_M$'])
-    theta, r = np.meshgrid(pos_theta, pos_r)
-    from matplotlib import cm
-    from matplotlib.colors import ListedColormap, LinearSegmentedColormap
-    viridis = cm.get_cmap('viridis', 1000)
-    newcolors = viridis(np.linspace(0, 1, 1000))
-    pink = np.array([.1])
-    newcolors[500, :] = pink
-    newcmp = ListedColormap(newcolors)
-    count = count[:-1, :-1, 0]
-    ma = ma[:-1, :-1]
-    ma[count == 0] = 40
-    viridis = cm.get_cmap('bwr', 1000)
-    newcolors = viridis(np.linspace(0, 1, 1000))
-    pink = np.array([.1])
-    newcolors[500, :] = pink
-    newcmp = ListedColormap(newcolors)
-    alpha = np.arctan2(mz, mx*(-1))*180./np.pi
-    mx = mx[:-1, :-1]
-    mx[count == 0] = 0.0
-    my = my[:-1, :-1]
-    my[count == 0] = 0.0
-    mz = mz[:-1, :-1]
-    mz[count == 0] = 0.0
-    alpha = alpha[:-1, :-1]
-    alpha[count == 0] = 0.0
-    format_polar_plots(axs)
-    np.shape(theta)
-    axs.imshow(mx, vmin=-10, vmax=10)
-
-
-# def compare_boundaries(df1, df2, dt=30):
-
-#     '''
-#     Will be code to cross compare the two lists (df_sun & df_p)
-#     How to implement?
-#     Find events with approx same start time
-#     Find difference in x_msm and rho_msm
-#     Find events identified in one list but not the other
-#     '''
-#     #First plot all events identified in one list but not the other
-#     df1 = df1[df1["start"].index < 16000]
-#     df2 = df2[df2["start"].index < 16000]
-
-#     #Function that creates new df with elements unique to df2
-#     #Checks if start time is same +/- dt
-#     def only_one_df(df1,df2,dt=dt):
-#         temp=[]
-#         j=0
-#         for i in df1["start"]:
-#             check_time=[i-datetime.timedelta(seconds=dt),i+datetime.timedelta(seconds=dt)]
-#             x = df2.index[(df2["start"] >= check_time[0])
-#                         & (df2["start"] <= check_time[1])]
-#             if len(x) == 0:
-#                 temp.append(j)
-#             j+=1
-#             print(f"{j}/{len(df1["start"])}", end = '\r')
-#         print(temp)
-#         df2_only = df2[df2.index.isin(temp)]
-
-#         return df2_only
-
-#     #Alt method: check if crossing occurs within one from other list
-#     def only_one_df_2(df1,df2):
-#         temp=[]
-#         j=0
-#         for i in range(len(df1)):
-#             tempdf=df1.loc[i]
-#             x = df1.index[((tempdf['start'] >= df2['start'])
-#                         & (tempdf['start'] <= df2['end'])) | ((tempdf['end'] >= df2['start'])
-#                         & (tempdf['end'] <= df2['end'])) | ((df2['start'] >= tempdf['start'])
-#                         & (df2['start'] <= tempdf['end'])) | ((df2['end'] >= tempdf['start'])
-#                         & (df2['end'] <= tempdf['end']))]
-#             if len(x) == 0:
-#                 temp.append(j)
-#             j+=1
-#             print(f"{j}/{len(df1["start"])}", end = '\r')
-#         print(temp)
-#         df1_only = df1[df1.index.isin(temp)]
-
-#         return df1_only
-
-#     df1_only = only_one_df(df2,df1)
-#     df2_only = only_one_df(df1,df2)
-
-#     print(len(df1_only))
-#     print(len(df2_only))
-
-#     #plot_boundary_locations(df1_only)
-#     #plot_boundary_locations(df2_only)
-
-#     return df1_only,df2_only
-
-# #Function to give sample of where list differ in start time by more than t seconds
-# def compare_lists(df1,df2,t):
-#     years = datetime.datetime(2014,12,30)
-#     df1_only, df2_only = compare_boundaries(df1, df2,t)
-#     df1_only = df1_only[df1_only["start"] > years]
-#     df2_only = df2_only[df2_only["start"] > years]
-
-#     print(df2_only.sample(n=5))
-
-# #Function to plot histogram of time difference between crossings
-# def compare_list_hist(df1,df2,t):
-#     df1_only, df2_only = compare_boundaries(df1, df2,t)
-#     df1_merge = df1.merge(df1_only,how='left',indicator=True)
-#     df1_both = df1_merge[df1_merge['_merge'] == 'left_only'].drop(columns=['_merge'])
-#     df2_merge = df2.merge(df2_only,how='left',indicator=True)
-#     df2_both = df2_merge[df2_merge['_merge'] == 'left_only'].drop(columns=['_merge'])
-
-#     df1_both=df1_both.reset_index()
-#     df2_both=df2_both.reset_index()
-#     print(df1_both['start']-df2_both['start'])
-
-#     return
-
-# def orbits_old(df):
-#     '''
-#     Assign orbit number to each crossing. Calling 1 orbit bs_in to bs_out, assuming not every orbit has bs but has mp_in.
-#     '''
-#     df['Orbit'] = 0
-#     orbit_number = -1
-#     for i in df.index:
-#         if df.Type[i] == "mp_in":
-#             orbit_number += 1
-#             if df.Type[i-1] == 'bs_in':
-#                 df.loc[i-1,'Orbit'] = orbit_number
-#         if orbit_number == -1:
-#             df.loc[i,'Orbit'] = orbit_number+1
-#         else:
-#             df.loc[i,'Orbit'] = orbit_number
-#     return orbit_number
-
-# def orbits_from_list(df):
-#     '''Function to assign orbit number to each crossing based on peri-to-peri'''
-#     '''Use eph data? Thats a lot of data! Could use 60 sec resolution so ~100mB'''
-#     r_all = np.sqrt(df.start_x_msm.to_numpy()**2 + df.start_y_msm.to_numpy()**2 + \
-#                     df.start_z_msm.to_numpy()**2)
-#     t_all = df.start
-#     from scipy.signal import find_peaks
-
-#     peaks, _ = find_peaks(-r_all)
-
-#     # Filter peaks based on time separation
-#     min_separation = datetime.timedelta(hours=6)  # Minimum separation in time
-#     filtered_peaks = []
-#     print(len(peaks))
-#     for peak in peaks:
-#         if len(filtered_peaks) == 0 or t_all[peak] - t_all[filtered_peaks[-1]] >= min_separation:
-#             filtered_peaks.append(peak)
-#     peaks=filtered_peaks
-#     print(len(peaks))
-#     orbit = 1
-#     df['Orbit'] = 0
-#     for p in range(len(peaks)-1):
-#         orbit_range = [peaks[p],peaks[p+1]]
-#         df.loc[peaks[p]:peaks[p+1],'Orbit'] = orbit
-#         orbit+=1
-#         time_range = [df.start.iloc[orbit_range[0]],df.start.iloc[orbit_range[1]]]
-#         if p == len(peaks)-2:
-#             df.loc[peaks[-1]+1:,'Orbit'] = orbit
-#     return df
