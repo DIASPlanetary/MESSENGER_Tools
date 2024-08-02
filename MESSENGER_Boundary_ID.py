@@ -704,11 +704,15 @@ def mag_time_series(start_date, end_date, res="01", sun=False, philpott=False, s
         start_date -- string format of start date "YYYY-MM-DD-HH-MM-SS"
         start_date -- string format of end date "YYYY-MM-DD-HH-MM-SS"
         res -- time resolution of data. Options: "01", "05", "10", or "60" seconds
-        sun -- Plot sun boundary crossings (booleen)
-        philpott -- Plot philpott boundary crossings (booleen)
+        sun -- Plot sun boundary crossings (boolean)
+        philpott -- Plot philpott boundary crossings (boolean)
+        save -- saves output figure (boolean, default = False)
+        num -- number added to name of save file (int, default = 0)
+        plot -- plots output (boolean, default = True)
 
-        Data must be stored under structure:    /mess-mag-calibrated/"MM"/file.TAB
-                                    example:    /mess-mag-calibrated/01/MAGMSOSCIAVG15001_01_V08.TAB
+
+        Data must be stored under structure:    /mess-mag-calibrated/'YY'/"MM"/file.TAB
+                                    example:    /mess-mag-calibrated/15/01/MAGMSOSCIAVG15001_01_V08.TAB
     '''
 
     start_date_obj = datetime.datetime.strptime(
