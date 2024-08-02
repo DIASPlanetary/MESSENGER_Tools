@@ -577,6 +577,7 @@ def plot_mag_time_series(df, start_date, end_date, sun=False, philpott=False):
     axs[2].set_ylabel("$B_z$ (nT)", fontsize=12)
     axs[2].plot(df['Time'], df['mag_z'], linewidth=0.8, c='#e41a1c')
     axs[2].axhline(ls='--',c='k',alpha=0.7,lw=0.7)
+
     # Amplitude of B field
     axs[3].set_ylabel("|B| (nT)", fontsize=12)
     axs[3].plot(df['Time'], df['magamp'], linewidth=0.8, c='black')
