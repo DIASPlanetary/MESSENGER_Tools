@@ -45,7 +45,8 @@ def start():
 
 def info():
     ''' Load in data frame with ephemeris 
-    and mag data for the entire mission at 1 second resolution
+    and mag data for the entire mission at 1 second resolution.
+    Need to create pickle first, see line 2049
     '''
     df_info = pd.read_pickle("df_info_all.pkl")
     return df_info
@@ -128,7 +129,6 @@ Sun_file = '/home/adam/Desktop/DIAS/MESSENGER/MESSENGER_Boundary_Testing/Sun_Bou
 
 def convert_to_datetime(date_string):
     ''' converts date_string to datetime object'''
-    import datetime
     date_obj = datetime.datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S")
 
     return date_obj
@@ -214,8 +214,6 @@ def read_in_Philpott_list(pf):
         # Aberration:
 
         def get_aberration_angle(date):
-
-            import numpy as np
 
             # Estimate instantaneous orbital velocity of Mercury:
 
@@ -352,7 +350,6 @@ def read_in_Sun_files(scf):
                     x_in[i, 4] = 59
 
             def convert_to_datetime(date_string):
-                import datetime
                 date_obj = datetime.datetime.strptime(
                     date_string, "%Y-%m-%d %H:%M:%S")
 
@@ -391,8 +388,6 @@ def read_in_Sun_files(scf):
     bs_out = convert_Sun_txt_to_date(file_bs_out)
 
     def generate_crossing_dataframe(cross, typ, eph=False):
-        import numpy as np
-        import pandas as pd
 
         cross_start = cross[0, :]
 
@@ -1299,6 +1294,7 @@ def orbit(df_all, df_crossing):
         orbits += 1
     orbit_range = [peaks[0][-1]]
     time_range = [df_all.Time.iloc[orbit_range[0]]]
+    df_p = pd.read_pickle("df_p.pickle")
     df_p.loc[df_p['start'] >= time_range[0], 'Orbit'] = int(orbits)
 
     return df_crossing
@@ -1639,12 +1635,10 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                          label=f'Orbit = {df.loc[i, 'Orbit']}')
                 plt.ylabel('Number of Measurements')
                 if df.loc[i, 'Type'] == 'mp_in':
-                    plt.title(f'Magnetosheath 
-                            {minute} minutes before MP interval for inbound')
+                    plt.title(f'Magnetosheath {minute} minutes before MP interval for inbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 else:
-                    plt.title(f'Magnetosphere 
-                            {minute} minutes before MP interval for outbound')
+                    plt.title(f'Magnetosphere {minute} minutes before MP interval for outbound')
                     plt.xlabel('$B_x$ in magnetosphere')
                 plt.legend()
             # plt.savefig('Before_MP.png')
@@ -1665,12 +1659,10 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
                          label=f'Orbit = {df.loc[i, 'Orbit']}')
                 plt.ylabel('Number of Measurements')
                 if df.loc[i, 'Type'] == 'mp_in':
-                    plt.title(f'Magnetosphere 
-                            {minute} minutes after MP interval for inbound')
+                    plt.title(f'Magnetosphere {minute} minutes after MP interval for inbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 else:
-                    plt.title(f'Magnetosheath 
-                            {minute} minutes after MP interval for outbound')
+                    plt.title(f'Magnetosheath {minute} minutes after MP interval for outbound')
                     plt.xlabel('$B_x$ in magnetosheath')
                 plt.legend()
                 # plt.savefig('After_MP.png')
@@ -1763,11 +1755,9 @@ def mag_mp_hist(df, n=1, minute=5, time_win=120, combine=False, MS=False, timese
             time_int = int(time_win/2)
             if RMS == 'x':
                 Bamp = y
-                ax4.set_ylabel(f'RMS of $B_x$ \n averaging over 
-                                {time_win} seconds')
+                ax4.set_ylabel(f'RMS of $B_x$ \n averaging over {time_win} seconds')
             else:
-                ax4.set_ylabel(f'RMS of $|B|$ \n averaging over {
-                               time_win} seconds')
+                ax4.set_ylabel(f'RMS of $|B|$ \n averaging over {time_win} seconds')
             time_avg = x[time_int:-time_int]
             mag_avg = Bamp[time_int:-time_int]
             b_avg = np.array([])
@@ -2125,8 +2115,6 @@ def residence_plot(df_info, first_time=False):
     df_info -- dataframe containing ephemeris data
     first_time -- When true adds sheath and sphere label to df_info, must be true for first run
     '''
-    import matplotlib.colors as mcolors
-    import matplotlib.cm as cm
 
     # df_crossing = df_p
     # df_info=add_type_to_all(df_info,df_crossing)
